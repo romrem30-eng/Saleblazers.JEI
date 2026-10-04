@@ -1223,8 +1223,11 @@ internal static class JeiUI
         _detailMetaText.fontSize = 11;
         var msb = new System.Text.StringBuilder();
         msb.Append("<color=#8FD694><b>").Append(JeiLoc.AttrEffectHeader).Append(":</b></color> <color=#FFFFFF>").Append(a.Description).Append("</color>\n");
-        msb.Append("<color=#B0B8C8>").Append(JeiLoc.AttrRangeLabel).Append(" </color><color=#F5D76E>").Append(a.ValueRangeText).Append("</color>");
-        msb.Append("  |  <color=#B0B8C8>").Append(JeiLoc.AttrDurationLabel).Append(" </color><color=#F5D76E>").Append(a.DurationText).Append("</color>\n");
+        if (!string.IsNullOrEmpty(a.ValueRangeText))
+        {
+            msb.Append("<color=#B0B8C8>").Append(JeiLoc.AttrRangeLabel).Append(" </color><color=#F5D76E>").Append(a.ValueRangeText).Append("</color>  |  ");
+        }
+        msb.Append("<color=#B0B8C8>").Append(JeiLoc.AttrDurationLabel).Append(" </color><color=#F5D76E>").Append(a.DurationText).Append("</color>\n");
 
         bool hasMechanics = false;
         if (!string.IsNullOrEmpty(a.AppliesTo))
@@ -1244,19 +1247,41 @@ internal static class JeiUI
         }
         _detailMetaText.text = msb.ToString();
 
-        // List of associated meals / food dishes granting this attribute
-        _recipeSectionTitle.text = $"{JeiLoc.AttrFoodHeader} ({a.AssociatedFoodItemIDs.Count})";
-
+        // If no associated meals, show dedicated mechanics and acquisition panel
         if (a.AssociatedFoodItemIDs.Count == 0)
         {
-            _recipePageText.text = "0/0";
-            var emptyTxt = UiKit.MakeText(_recipeListContainer, "EmptyAttrFoodTxt",
-                "<color=#8892A6>" + JeiLoc.AttrNoFoodLinked + "</color>",
-                12, Color.white, TextAnchor.UpperLeft,
-                new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1), new Vector2(4, -6), new Vector2(380, 80), _font);
-            _detailDynamic.Add(emptyTxt.gameObject);
+            _recipeSectionTitle.text = JeiLoc.AttrMechanicsHeader;
+            _recipePageText.text = "";
+
+            var boxBg = UiKit.MakeImage(_recipeListContainer, "MechanicsBoxBg", new Color(0.14f, 0.16f, 0.22f, 0.95f),
+                new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 0), new Vector2(396, 220));
+            _detailDynamic.Add(boxBg.gameObject);
+
+            var sbMech = new System.Text.StringBuilder();
+            sbMech.Append("<size=13><color=#8FD694><b>").Append(JeiLoc.IsRu ? "КАК ПОЛУЧИТЬ И ИСПОЛЬЗОВАТЬ:" : "HOW TO ACQUIRE & USE:").Append("</b></color></size>\n\n");
+
+            if (!string.IsNullOrEmpty(a.SourceName))
+            {
+                sbMech.Append("<color=#B0B8C8>").Append(JeiLoc.AttrSourceLabel).Append(" </color><color=#F5D76E><b>").Append(a.SourceName).Append("</b></color>\n\n");
+            }
+            if (!string.IsNullOrEmpty(a.AppliesTo))
+            {
+                sbMech.Append("<color=#B0B8C8>").Append(JeiLoc.AttrAppliesToLabel).Append(" </color><color=#6EC6F5>").Append(a.AppliesTo).Append("</color>\n\n");
+            }
+            if (!string.IsNullOrEmpty(a.TriggerText))
+            {
+                sbMech.Append("<color=#B0B8C8>").Append(JeiLoc.AttrTriggerLabel).Append(" </color><color=#FFAA55>").Append(a.TriggerText).Append("</color>\n\n");
+            }
+
+            sbMech.Append("<color=#A0A8B8>").Append(JeiLoc.AttrNoFoodLinked).Append("</color>");
+
+            UiKit.MakeText(boxBg.rectTransform, "MechanicsDesc", sbMech.ToString(), 12, Color.white, TextAnchor.UpperLeft,
+                new Vector2(0, 0), new Vector2(1, 1), new Vector2(0.5f, 0.5f), new Vector2(12, 12), new Vector2(-24, -24), _font);
             return;
         }
+
+        // List of associated meals / food dishes granting this attribute
+        _recipeSectionTitle.text = $"{JeiLoc.AttrFoodHeader} ({a.AssociatedFoodItemIDs.Count})";
 
         _recipeOffset = Mathf.Clamp(_recipeOffset, 0, a.AssociatedFoodItemIDs.Count - 1);
 
