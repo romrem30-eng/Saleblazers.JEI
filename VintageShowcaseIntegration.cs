@@ -18,7 +18,7 @@ namespace Saleblazers.ModBase;
 /// </summary>
 public static class VintageShowcaseIntegration
 {
-    public const int VintageShowcaseItemID = 19950;
+    public static int VintageShowcaseItemID { get; internal set; } = -1;
     public const string ShowcaseNameEn = "Vintage Showcase";
     public const string ShowcaseNameRu = "Винтажная витрина";
     public const string ShowcaseDescEn = "An exquisite vintage confectionery showcase with a glass shelf, polished wooden frame, and brass hardware. Perfect for displaying chocolates, jewelry, and prized goods.";
@@ -41,16 +41,23 @@ public static class VintageShowcaseIntegration
             // Check if already registered
             foreach (var it in itemDb.ItemArray)
             {
-                if (it != null && it.ItemID == VintageShowcaseItemID)
+                if (it != null && (it.ItemName == ShowcaseNameEn || (VintageShowcaseItemID > 0 && it.ItemID == VintageShowcaseItemID)))
                 {
+                    VintageShowcaseItemID = it.ItemID;
                     _registered = true;
                     return;
                 }
             }
 
+            // Assign next contiguous ItemID matching its exact index in ItemArray to satisfy direct array lookups
+            VintageShowcaseItemID = itemDb.ItemArray.Length;
+            log?.LogInfo($"[VintageShowcase] Assigning ItemID {VintageShowcaseItemID} (next contiguous array index)...");
+
             log?.LogInfo("[VintageShowcase] Searching for base display template in HRItemDatabase...");
             HRItemDatabase.HRItemData templateItem = null;
             HRDisplayContainer templateDisplay = null;
+            HRItemDatabase.HRItemData fallbackItem = null;
+            HRDisplayContainer fallbackDisplay = null;
 
             foreach (var it in itemDb.ItemArray)
             {
@@ -59,10 +66,32 @@ public static class VintageShowcaseIntegration
                 var placeable = it.ItemPrefab.GetComponentInChildren<BaseItemPlaceable>();
                 if (dc != null && placeable != null)
                 {
-                    templateItem = it;
-                    templateDisplay = dc;
-                    log?.LogInfo($"[VintageShowcase] Found display template: '{it.ItemName}' (ID {it.ItemID})");
-                    break;
+                    string name = it.ItemName ?? "";
+                    if (name.IndexOf("Shelf", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        name.IndexOf("Display", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        name.IndexOf("Table", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        name.IndexOf("Counter", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        templateItem = it;
+                        templateDisplay = dc;
+                        log?.LogInfo($"[VintageShowcase] Selected display template: '{it.ItemName}' (ID {it.ItemID})");
+                        break;
+                    }
+                    if (fallbackItem == null)
+                    {
+                        fallbackItem = it;
+                        fallbackDisplay = dc;
+                    }
+                }
+            }
+
+            if (templateItem == null)
+            {
+                templateItem = fallbackItem;
+                templateDisplay = fallbackDisplay;
+                if (templateItem != null)
+                {
+                    log?.LogInfo($"[VintageShowcase] Using fallback display template: '{templateItem.ItemName}' (ID {templateItem.ItemID})");
                 }
             }
 
@@ -85,6 +114,12 @@ public static class VintageShowcaseIntegration
             _showcasePrefab.name = "PF_VintageShowcase";
             UnityEngine.Object.DontDestroyOnLoad(_showcasePrefab);
             _showcasePrefab.SetActive(false);
+
+            var weapon = _showcasePrefab.GetComponent<BaseWeapon>() ?? _showcasePrefab.GetComponentInChildren<BaseWeapon>();
+            if (weapon != null)
+            {
+                weapon.ItemID = VintageShowcaseItemID;
+            }
 
             // 3. Setup visual model & materials
             SetupVisualModel(_showcasePrefab, _showcaseMesh, templateItem.ItemPrefab, log);
@@ -116,7 +151,7 @@ public static class VintageShowcaseIntegration
             }
 
             _registered = true;
-            log?.LogInfo($"[VintageShowcase] Successfully registered '{ShowcaseNameEn}' (#19950) with 4 display sockets and crafting recipe!");
+            log?.LogInfo($"[VintageShowcase] Successfully registered '{ShowcaseNameEn}' (#{VintageShowcaseItemID}) with 4 display sockets and crafting recipe!");
         }
         catch (Exception ex)
         {

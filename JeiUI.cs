@@ -1515,7 +1515,43 @@ internal static class JeiUI
             int safety = 0;
             while (remaining > 0 && safety++ < 30)
             {
-                var weapon = console.SpawnPrefab_Server(_selectedItemId, 1, 0, pos + Vector3.up * 0.6f, Quaternion.identity, false);
+                BaseWeapon weapon = null;
+                try
+                {
+                    weapon = console.SpawnPrefab_Server(_selectedItemId, 1, 0, pos + Vector3.up * 0.6f, Quaternion.identity, false);
+                }
+                catch (Exception ex)
+                {
+                    _log?.LogWarning($"[JEI] SpawnPrefab_Server failed for #{_selectedItemId}: {ex.Message}. Falling back to direct prefab instantiation.");
+                }
+
+                if (weapon == null)
+                {
+                    GameObject prefab = null;
+                    if (JeiCatalog.Items.TryGetValue(_selectedItemId, out var catEntry) && catEntry.Source != null && catEntry.Source.ItemPrefab != null)
+                    {
+                        prefab = catEntry.Source.ItemPrefab;
+                    }
+
+                    if (prefab != null)
+                    {
+                        try
+                        {
+                            var spawnedObj = UnityEngine.Object.Instantiate(prefab, pos + Vector3.up * 0.6f, Quaternion.identity);
+                            spawnedObj.SetActive(true);
+                            weapon = spawnedObj.GetComponent<BaseWeapon>() ?? spawnedObj.GetComponentInChildren<BaseWeapon>();
+                            if (weapon != null)
+                            {
+                                weapon.ItemID = _selectedItemId;
+                            }
+                        }
+                        catch (Exception directEx)
+                        {
+                            _log?.LogError($"[JEI] Direct prefab instantiate failed: {directEx.Message}");
+                        }
+                    }
+                }
+
                 if (weapon == null) break;
 
                 int maxStack = 1;
