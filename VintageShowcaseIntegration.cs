@@ -485,11 +485,17 @@ public static class VintageShowcaseIntegration
             r.enabled = false;
         }
 
-        // 2. Disable all old solid physical colliders from the template visual model
+        // 2. Convert all old solid physical colliders from the template into disabled triggers
+        // so even if BaseWeapon re-enables its cached Colliders array while held, they never push the player.
         foreach (var c in prefab.GetComponentsInChildren<Collider>(true))
         {
-            // Do NOT disable trigger colliders (they are the interaction sockets for placing items!)
+            // Keep interaction socket trigger colliders intact
             if (c.isTrigger) continue;
+            if (c is MeshCollider mc)
+            {
+                mc.convex = true;
+            }
+            c.isTrigger = true;
             c.enabled = false;
         }
 
@@ -563,13 +569,13 @@ public static class VintageShowcaseIntegration
 
         mr.sharedMaterials = new Il2CppReferenceArray<Material>(new[] { woodMat, glassMat, brassMat, floorMat });
 
-        // 5. Setup BoxCollider - DISABLED while held in hands! Zero physical presence while held!
+        // 5. Setup BoxCollider - Trigger while held in hands (zero physical pushback), solid when placed on plot
         var mainCol = prefab.GetComponent<BoxCollider>();
         if (mainCol == null) mainCol = prefab.AddComponent<BoxCollider>();
         mainCol.center = new Vector3(0f, 0.425f, 0f);
         mainCol.size = new Vector3(0.60f, 0.85f, 0.50f);
-        mainCol.isTrigger = false;
-        mainCol.enabled = false; // CRITICAL: Disabled while held! Zero physical pushback / sliding!
+        mainCol.isTrigger = true;
+        mainCol.enabled = false;
 
         var placeable = prefab.GetComponentInChildren<BaseItemPlaceable>();
         if (placeable != null)
@@ -578,7 +584,7 @@ public static class VintageShowcaseIntegration
             placeable.GridSize = 0.5f;
             placeable.bPlacementSnapToGrid = true;
 
-            // When placed on plot, enable physical collision
+            // When placed on plot, enable solid physical collision
             var existingPlaced = placeable.OnPlacedDelegate;
             placeable.OnPlacedDelegate = Il2CppInterop.Runtime.DelegateSupport.ConvertDelegate<BaseItemPlaceable.BaseItemPlacedSignature>(new Action<BaseItemPlaceable, Vector3, Quaternion>((p, pos, rot) =>
             {
@@ -590,7 +596,7 @@ public static class VintageShowcaseIntegration
                         if (bCol != null)
                         {
                             bCol.isTrigger = false;
-                            bCol.enabled = true; // Solid physical obstacle once placed on plot!
+                            bCol.enabled = true;
                         }
                     }
                     existingPlaced?.Invoke(p, pos, rot);
@@ -818,7 +824,7 @@ public static class Patch_HRItemDatabase_GetLocalizedItemName
     [HarmonyPrefix]
     public static bool Prefix(string Name, ref string __result)
     {
-        if (Name == VintageShowcaseIntegration.ShowcaseNameEn)
+        if (!string.IsNullOrEmpty(Name) && Name == VintageShowcaseIntegration.ShowcaseNameEn)
         {
             __result = VintageShowcaseIntegration.IsRussianLanguage()
                 ? VintageShowcaseIntegration.ShowcaseNameRu
@@ -829,127 +835,4 @@ public static class Patch_HRItemDatabase_GetLocalizedItemName
     }
 }
 
-[HarmonyPatch(typeof(ControlSettingsMenuHelper), nameof(ControlSettingsMenuHelper.ParseBindingString))]
-public static class Patch_ControlSettingsMenuHelper_ParseBindingString
-{
-    [HarmonyPrefix]
-    public static bool Prefix(ref string inString, ref string __result)
-    {
-        if (string.IsNullOrEmpty(inString))
-        {
-            __result = inString ?? string.Empty;
-            return false;
-        }
-        return true;
-    }
-
-    [HarmonyFinalizer]
-    public static Exception Finalizer(Exception __exception, string inString, ref string __result)
-    {
-        if (__exception != null)
-        {
-            __result = inString ?? string.Empty;
-            return null;
-        }
-        return null;
-    }
-}
-
-[HarmonyPatch(typeof(ControlSettingsMenuHelper), nameof(ControlSettingsMenuHelper.TryReplaceBindingString))]
-public static class Patch_ControlSettingsMenuHelper_TryReplaceBindingString
-{
-    [HarmonyPrefix]
-    public static bool Prefix(string inString, int startIndex, ref string outString, ref int tagIndex, ref bool __result)
-    {
-        if (string.IsNullOrEmpty(inString) || startIndex < 0 || startIndex >= inString.Length)
-        {
-            outString = inString ?? string.Empty;
-            tagIndex = startIndex;
-            __result = false;
-            return false;
-        }
-        return true;
-    }
-
-    [HarmonyFinalizer]
-    public static Exception Finalizer(Exception __exception, string inString, ref string outString, ref int tagIndex, ref bool __result)
-    {
-        if (__exception != null)
-        {
-            outString = inString ?? string.Empty;
-            tagIndex = -1;
-            __result = false;
-            return null;
-        }
-        return null;
-    }
-}
-
-[HarmonyPatch(typeof(BaseWeapon), nameof(BaseWeapon.HandleEquip))]
-public static class Patch_BaseWeapon_HandleEquip
-{
-    [HarmonyPostfix]
-    public static void Postfix(BaseWeapon __instance, bool bEquipping, BaseWeaponManager InWeaponManager)
-    {
-        try
-        {
-            if (__instance != null && __instance.ItemID == VintageShowcaseIntegration.VintageShowcaseItemID)
-            {
-                // When showcase is held/equipped, disable all non-trigger colliders to guarantee zero skating
-                var colliders = __instance.GetComponentsInChildren<Collider>(true);
-                foreach (var c in colliders)
-                {
-                    if (c != null && !c.isTrigger)
-                    {
-                        c.enabled = false;
-                    }
-                }
-
-                // Ignore collision with the equipping player character
-                if (InWeaponManager != null)
-                {
-                    var playerCols = InWeaponManager.GetComponentsInChildren<Collider>(true);
-                    foreach (var pc in playerCols)
-                    {
-                        if (pc == null) continue;
-                        foreach (var c in colliders)
-                        {
-                            if (c != null)
-                            {
-                                Physics.IgnoreCollision(pc, c, true);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        catch { }
-    }
-}
-
-[HarmonyPatch(typeof(BaseWeapon), nameof(BaseWeapon.SetPlacementCollisionEnabled))]
-public static class Patch_BaseWeapon_SetPlacementCollisionEnabled
-{
-    [HarmonyPrefix]
-    public static bool Prefix(BaseWeapon __instance, bool bEnabled)
-    {
-        if (__instance != null && __instance.ItemID == VintageShowcaseIntegration.VintageShowcaseItemID)
-        {
-            // While actively held in hands (placement preview), NEVER enable solid colliders!
-            if (__instance.ActivelyEquipped)
-            {
-                var colliders = __instance.GetComponentsInChildren<Collider>(true);
-                foreach (var c in colliders)
-                {
-                    if (c != null && !c.isTrigger)
-                    {
-                        c.enabled = false;
-                    }
-                }
-                return false;
-            }
-        }
-        return true;
-    }
-}
 
