@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using BepInEx;
 using BepInEx.Logging;
+using HarmonyLib;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using UnityEngine;
 
@@ -14,7 +15,7 @@ namespace Saleblazers.ModBase;
 /// - Loads the 3D model (from VintageShowcase.obj or procedural geometry).
 /// - Clones an in-game store display prefab to retain base game networking, placement, and customer AI.
 /// - Injects custom visual mesh, materials (polished walnut, glass, brass), and 4 display sockets.
-/// - Registers the new item (#19950) in HRItemDatabase and its crafting recipe in HRCraftingDatabase.
+/// - Registers the new item in HRItemDatabase and its crafting recipe in HRCraftingDatabase.
 /// </summary>
 public static class VintageShowcaseIntegration
 {
@@ -30,6 +31,18 @@ public static class VintageShowcaseIntegration
     private static Sprite _showcaseSprite;
 
     public static bool IsRegistered => _registered;
+
+    public static bool IsRussianLanguage()
+    {
+        if (JeiLoc.IsRu) return true;
+        try
+        {
+            if (CultureInfo.CurrentUICulture.TwoLetterISOLanguageName.Equals("ru", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        catch { }
+        return Application.systemLanguage == SystemLanguage.Russian;
+    }
 
     public static void EnsureRegistered(HRItemDatabase itemDb, HRCraftingDatabase craftDb, ManualLogSource log)
     {
@@ -634,6 +647,11 @@ public static class VintageShowcaseIntegration
         itemData.ItemID = VintageShowcaseItemID;
         itemData.ItemName = ShowcaseNameEn;
         itemData.ItemPrefab = prefab;
+        itemData.OwningDatabase = itemDb;
+        if (templateItem != null)
+        {
+            itemData.SpreadsheetLabel = templateItem.SpreadsheetLabel;
+        }
 
         // Populate Data fields
         if (itemData.Data == null && templateItem?.Data != null)
@@ -643,6 +661,14 @@ public static class VintageShowcaseIntegration
 
         if (itemData.Data != null)
         {
+            if (templateItem?.Data != null)
+            {
+                itemData.Data.WeaponDamage = templateItem.Data.WeaponDamage;
+                itemData.Data.Beauty = templateItem.Data.Beauty;
+                itemData.Data.EffectRange = templateItem.Data.EffectRange;
+                itemData.Data.ItemShape = templateItem.Data.ItemShape;
+                itemData.Data.FakeType = templateItem.Data.FakeType;
+            }
             itemData.Data.ItemDescription = ShowcaseDescEn;
             itemData.Data.ItemValue = 280f;
             itemData.Data.CraftedItemValue = 280f;
@@ -711,5 +737,116 @@ public static class VintageShowcaseIntegration
             craftDb.UpdateCache();
             log?.LogInfo("[VintageShowcase] Registered crafting recipe in HRCraftingDatabase (Craftable at Sawmill / Wood Crafting Table).");
         }
+    }
+}
+
+// ============================================================================
+// Harmony Patches for Safe Item Localization & Tooltip Rendering
+// ============================================================================
+
+[HarmonyPatch(typeof(HRItemDatabase), nameof(HRItemDatabase.GetLocalizedItemNameByID))]
+public static class Patch_HRItemDatabase_GetLocalizedItemNameByID
+{
+    [HarmonyPrefix]
+    public static bool Prefix(int itemID, ref string __result)
+    {
+        if (VintageShowcaseIntegration.VintageShowcaseItemID > 0 && itemID == VintageShowcaseIntegration.VintageShowcaseItemID)
+        {
+            __result = VintageShowcaseIntegration.IsRussianLanguage()
+                ? VintageShowcaseIntegration.ShowcaseNameRu
+                : VintageShowcaseIntegration.ShowcaseNameEn;
+            return false;
+        }
+        return true;
+    }
+}
+
+[HarmonyPatch(typeof(HRItemDatabase), nameof(HRItemDatabase.GetLocalizedItemDescriptionByID))]
+public static class Patch_HRItemDatabase_GetLocalizedItemDescriptionByID
+{
+    [HarmonyPrefix]
+    public static bool Prefix(int itemID, ref string __result)
+    {
+        if (VintageShowcaseIntegration.VintageShowcaseItemID > 0 && itemID == VintageShowcaseIntegration.VintageShowcaseItemID)
+        {
+            __result = VintageShowcaseIntegration.IsRussianLanguage()
+                ? VintageShowcaseIntegration.ShowcaseDescRu
+                : VintageShowcaseIntegration.ShowcaseDescEn;
+            return false;
+        }
+        return true;
+    }
+}
+
+[HarmonyPatch(typeof(HRItemDatabase), nameof(HRItemDatabase.GetLocalizedItemName))]
+public static class Patch_HRItemDatabase_GetLocalizedItemName
+{
+    [HarmonyPrefix]
+    public static bool Prefix(string Name, ref string __result)
+    {
+        if (Name == VintageShowcaseIntegration.ShowcaseNameEn)
+        {
+            __result = VintageShowcaseIntegration.IsRussianLanguage()
+                ? VintageShowcaseIntegration.ShowcaseNameRu
+                : VintageShowcaseIntegration.ShowcaseNameEn;
+            return false;
+        }
+        return true;
+    }
+}
+
+[HarmonyPatch(typeof(ControlSettingsMenuHelper), nameof(ControlSettingsMenuHelper.ParseBindingString))]
+public static class Patch_ControlSettingsMenuHelper_ParseBindingString
+{
+    [HarmonyPrefix]
+    public static bool Prefix(ref string inString, ref string __result)
+    {
+        if (string.IsNullOrEmpty(inString))
+        {
+            __result = inString ?? string.Empty;
+            return false;
+        }
+        return true;
+    }
+
+    [HarmonyFinalizer]
+    public static Exception Finalizer(Exception __exception, string inString, ref string __result)
+    {
+        if (__exception != null)
+        {
+            __result = inString ?? string.Empty;
+            return null;
+        }
+        return null;
+    }
+}
+
+[HarmonyPatch(typeof(ControlSettingsMenuHelper), nameof(ControlSettingsMenuHelper.TryReplaceBindingString))]
+public static class Patch_ControlSettingsMenuHelper_TryReplaceBindingString
+{
+    [HarmonyPrefix]
+    public static bool Prefix(string inString, int startIndex, ref string outString, ref int tagIndex, ref bool __result)
+    {
+        if (string.IsNullOrEmpty(inString) || startIndex < 0 || startIndex >= inString.Length)
+        {
+            outString = inString ?? string.Empty;
+            tagIndex = startIndex;
+            __result = false;
+            return false;
+        }
+        return true;
+    }
+
+    [HarmonyFinalizer]
+    public static Exception Finalizer(Exception __exception, string inString, ref string outString, ref int tagIndex, ref bool __result)
+    {
+        if (__exception != null)
+        {
+            outString = inString ?? string.Empty;
+            tagIndex = -1;
+            __result = false;
+            return null;
+        }
+        return null;
     }
 }
