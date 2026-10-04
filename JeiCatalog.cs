@@ -7,6 +7,18 @@ using UnityEngine;
 
 namespace Saleblazers.ModBase;
 
+public enum JeiCategoryFilter
+{
+    All,
+    Weapons,
+    Armor,
+    Food,
+    Materials,
+    Building,
+    Stations,
+    Consumables
+}
+
 public class JeiRecipe
 {
     public int ResultItemID;
@@ -16,6 +28,14 @@ public class JeiRecipe
     public int StationItemID;
     public string StationName;
     public List<KeyValuePair<int, int>> Ingredients = new(); // itemID, amount
+
+    // Culinary / Food extensions
+    public bool IsCooking;
+    public string VesselType;
+    public float SatiatingSeconds;
+    public float HydratingSeconds;
+    public float RegenPercent;
+    public List<int> FoodAffixIDs = new();
 }
 
 public class JeiUnlockInfo
@@ -46,6 +66,56 @@ public class JeiUnlockInfo
         : (!string.IsNullOrEmpty(RequirementTextEn) ? RequirementTextEn : RequirementTextRu);
 }
 
+public class JeiAttributeEntry
+{
+    public int ID;
+    public string StringID;
+    public string TitleRu;
+    public string TitleEn;
+    public Color TitleColor = Color.white;
+    public string DescriptionRu;
+    public string DescriptionEn;
+    public Sprite Icon;
+    public string Category = "Utility"; // Combat, Defense, Food, Utility
+    public List<int> AssociatedFoodItemIDs = new();
+
+    public string Title
+    {
+        get
+        {
+            if (JeiLoc.IsRu)
+            {
+                if (!string.IsNullOrEmpty(TitleRu)) return TitleRu;
+                if (!string.IsNullOrEmpty(TitleEn)) return TitleEn;
+            }
+            else
+            {
+                if (!string.IsNullOrEmpty(TitleEn)) return TitleEn;
+                if (!string.IsNullOrEmpty(TitleRu)) return TitleRu;
+            }
+            return !string.IsNullOrEmpty(StringID) ? StringID : ("#" + ID);
+        }
+    }
+
+    public string Description
+    {
+        get
+        {
+            if (JeiLoc.IsRu)
+            {
+                if (!string.IsNullOrEmpty(DescriptionRu)) return DescriptionRu;
+                if (!string.IsNullOrEmpty(DescriptionEn)) return DescriptionEn;
+            }
+            else
+            {
+                if (!string.IsNullOrEmpty(DescriptionEn)) return DescriptionEn;
+                if (!string.IsNullOrEmpty(DescriptionRu)) return DescriptionRu;
+            }
+            return JeiLoc.AttrNoDescription;
+        }
+    }
+}
+
 public class JeiItemEntry
 {
     public int ItemID;
@@ -53,6 +123,7 @@ public class JeiItemEntry
     public string FallbackName;
     public float BaseValue;
     public float CraftedValue;
+    public bool IsFood;
     public List<string> Categories = new();
     public List<JeiRecipe> Recipes = new();  // R: produces this
     public List<JeiRecipe> Usages = new();   // U: uses this as ingredient (or crafted at this station)
@@ -92,6 +163,84 @@ public class JeiItemEntry
         return list;
     }
 
+    public bool MatchesCategory(JeiCategoryFilter filter)
+    {
+        if (filter == JeiCategoryFilter.All) return true;
+
+        string nameLower = (FallbackName ?? "").ToLowerInvariant();
+
+        switch (filter)
+        {
+            case JeiCategoryFilter.Weapons:
+                foreach (var c in Categories)
+                {
+                    string cl = c.ToLowerInvariant();
+                    if (cl.Contains("weapon") || cl.Contains("melee") || cl.Contains("ranged") || cl.Contains("gun") || cl.Contains("bow") || cl.Contains("sword"))
+                        return true;
+                }
+                return nameLower.Contains("sword") || nameLower.Contains("bow") || nameLower.Contains("gun") || nameLower.Contains("rifle") || nameLower.Contains("knife") || nameLower.Contains("staff") || nameLower.Contains("wand");
+
+            case JeiCategoryFilter.Armor:
+                foreach (var c in Categories)
+                {
+                    string cl = c.ToLowerInvariant();
+                    if (cl.Contains("armor") || cl.Contains("clothing") || cl.Contains("helmet") || cl.Contains("hat") || cl.Contains("chest") || cl.Contains("pants") || cl.Contains("boots") || cl.Contains("shield") || cl.Contains("backpack"))
+                        return true;
+                }
+                return nameLower.Contains("helmet") || nameLower.Contains("hat") || nameLower.Contains("shirt") || nameLower.Contains("jacket") || nameLower.Contains("pants") || nameLower.Contains("boots") || nameLower.Contains("shield");
+
+            case JeiCategoryFilter.Food:
+                if (IsFood) return true;
+                foreach (var c in Categories)
+                {
+                    string cl = c.ToLowerInvariant();
+                    if (cl.Contains("food") || cl.Contains("ingredient") || cl.Contains("drink") || cl.Contains("meal") || cl.Contains("crop") || cl.Contains("produce") || cl.Contains("fish") || cl.Contains("meat"))
+                        return true;
+                }
+                return nameLower.Contains("soup") || nameLower.Contains("stew") || nameLower.Contains("sushi") || nameLower.Contains("bread") || nameLower.Contains("pie") || nameLower.Contains("meat") || nameLower.Contains("fish") || nameLower.Contains("apple");
+
+            case JeiCategoryFilter.Materials:
+                foreach (var c in Categories)
+                {
+                    string cl = c.ToLowerInvariant();
+                    if (cl.Contains("material") || cl.Contains("resource") || cl.Contains("ore") || cl.Contains("ingot") || cl.Contains("bar") || cl.Contains("wood") || cl.Contains("stone") || cl.Contains("cloth") || cl.Contains("leather") || cl.Contains("plank"))
+                        return true;
+                }
+                return nameLower.Contains("ore") || nameLower.Contains("ingot") || nameLower.Contains("bar") || nameLower.Contains("wood") || nameLower.Contains("stone") || nameLower.Contains("scrap");
+
+            case JeiCategoryFilter.Building:
+                foreach (var c in Categories)
+                {
+                    string cl = c.ToLowerInvariant();
+                    if (cl.Contains("building") || cl.Contains("structure") || cl.Contains("wall") || cl.Contains("floor") || cl.Contains("roof") || cl.Contains("furniture") || cl.Contains("door") || cl.Contains("window") || cl.Contains("decor") || cl.Contains("light"))
+                        return true;
+                }
+                return nameLower.Contains("wall") || nameLower.Contains("floor") || nameLower.Contains("roof") || nameLower.Contains("door") || nameLower.Contains("chair") || nameLower.Contains("table") || nameLower.Contains("lamp") || nameLower.Contains("shelf");
+
+            case JeiCategoryFilter.Stations:
+                if (JeiCatalog.IsStationItem(ItemID)) return true;
+                foreach (var c in Categories)
+                {
+                    string cl = c.ToLowerInvariant();
+                    if (cl.Contains("crafting") || cl.Contains("station") || cl.Contains("bench") || cl.Contains("anvil") || cl.Contains("furnace") || cl.Contains("stove") || cl.Contains("forge") || cl.Contains("kiln") || cl.Contains("cauldron"))
+                        return true;
+                }
+                return nameLower.Contains("workbench") || nameLower.Contains("crafting table") || nameLower.Contains("anvil") || nameLower.Contains("furnace") || nameLower.Contains("stove") || nameLower.Contains("cauldron");
+
+            case JeiCategoryFilter.Consumables:
+                foreach (var c in Categories)
+                {
+                    string cl = c.ToLowerInvariant();
+                    if (cl.Contains("consumable") || cl.Contains("potion") || cl.Contains("medicine") || cl.Contains("ammo") || cl.Contains("bullet") || cl.Contains("arrow") || cl.Contains("grenade") || cl.Contains("bandage"))
+                        return true;
+                }
+                return nameLower.Contains("potion") || nameLower.Contains("bullet") || nameLower.Contains("ammo") || nameLower.Contains("arrow") || nameLower.Contains("bandage") || nameLower.Contains("medkit");
+
+            default:
+                return true;
+        }
+    }
+
     public Sprite Icon
     {
         get
@@ -107,8 +256,8 @@ public class JeiItemEntry
 }
 
 /// <summary>
-/// JEI catalog: scans HRItemDatabase.ItemArray + HRCraftingDatabase.CraftableItems + HRSkillTree
-/// and builds ItemsById / Recipes / Usages / Station links / Research unlock requirements.
+/// JEI catalog: scans HRItemDatabase, HRCraftingDatabase, HRSkillTree, HRFoodDatabase, and HRAttributeDatabase.
+/// Builds comprehensive items, culinary recipes, workstation links, research unlock info, and attribute codex.
 /// </summary>
 internal static class JeiCatalog
 {
@@ -116,12 +265,19 @@ internal static class JeiCatalog
     private static TMP_FontAsset _font;
     private static bool _scanned;
     private static readonly Dictionary<int, JeiItemEntry> _items = new();
+    private static readonly List<JeiAttributeEntry> _attributes = new();
+    private static readonly Dictionary<int, JeiAttributeEntry> _attributesById = new();
     private static readonly Dictionary<int, List<string>> _dropSources = new();
     private static readonly Dictionary<int, int> _stationItemIds = new();
+    private static readonly HashSet<int> _allStationItemIds = new();
 
     public static TMP_FontAsset Font => _font != null ? _font : (_font = LoadFont());
     public static bool Scanned => _scanned;
     public static IReadOnlyDictionary<int, JeiItemEntry> Items => _items;
+    public static IReadOnlyList<JeiAttributeEntry> Attributes => _attributes;
+    public static IReadOnlyDictionary<int, JeiAttributeEntry> AttributesById => _attributesById;
+
+    public static bool IsStationItem(int itemId) => _allStationItemIds.Contains(itemId);
 
     public static void Init(ManualLogSource log)
     {
@@ -176,8 +332,11 @@ internal static class JeiCatalog
 
         _items.Clear();
         _stationItemIds.Clear();
+        _allStationItemIds.Clear();
+        _attributes.Clear();
+        _attributesById.Clear();
 
-        // ---- items ----
+        // 1. Items from HRItemDatabase
         if (itemDb?.ItemArray != null)
         {
             foreach (var it in itemDb.ItemArray)
@@ -200,11 +359,11 @@ internal static class JeiCatalog
             }
         }
 
-        // ---- localized names ----
+        // Localized item names
         foreach (var e in _items.Values)
             e.Name = HRItemDatabase.GetLocalizedItemNameByID(e.ItemID, e.FallbackName);
 
-        // ---- station ItemIDs from CraftingTableReferences ----
+        // 2. Station ItemIDs from CraftingTableReferences
         if (craftingDb?.CraftingTableReferences != null)
         {
             foreach (var tr in craftingDb.CraftingTableReferences)
@@ -217,6 +376,7 @@ internal static class JeiCatalog
                     if (stnItemId > 0)
                     {
                         _stationItemIds[flagVal] = stnItemId;
+                        _allStationItemIds.Add(stnItemId);
                     }
                 }
                 catch (Exception) { }
@@ -224,7 +384,7 @@ internal static class JeiCatalog
         }
         PopulateFallbackStationIds();
 
-        // ---- recipes (R) + usages (U) + basic unlock flags ----
+        // 3. Recipes (R) + Usages (U) from HRCraftingDatabase
         if (craftingDb?.CraftableItems != null)
         {
             foreach (var ci in craftingDb.CraftableItems)
@@ -240,7 +400,6 @@ internal static class JeiCatalog
                         targetItem.Unlock.Cost = ci.OverridePrice;
                 }
 
-                // Check UnlockIDs: in HRCraftingInfo, UnlockIDs are items unlocked by crafting/researching this item
                 if (ci.UnlockIDs != null)
                 {
                     foreach (int unlockedId in ci.UnlockIDs)
@@ -282,7 +441,6 @@ internal static class JeiCatalog
                         if (_items.TryGetValue(ing.Key, out var use) && !use.Usages.Contains(r))
                             use.Usages.Add(r);
 
-                    // Also link recipe to the crafting station's Usages so viewing a Workbench shows what it crafts!
                     if (stnItemId > 0 && _items.TryGetValue(stnItemId, out var stnItem) && !stnItem.Usages.Contains(r))
                     {
                         stnItem.Usages.Add(r);
@@ -291,12 +449,297 @@ internal static class JeiCatalog
             }
         }
 
-        // ---- Scan Research / Skill Trees (ResearchBenchTreeSO + any loaded HRSkillTree) ----
+        // 4. Scan Research / Skill Trees
         ScanSkillTrees(craftingDb?.ResearchBenchTreeSO);
 
+        // 5. Scan Food & Culinary Recipes from HRFoodDatabase
+        ScanFoodDatabase();
+
+        // 6. Scan Item Attributes & Affixes from HRAttributeDatabase
+        ScanAttributeDatabase();
+
         _scanned = true;
-        _log?.LogInfo($"[JEI] Catalog: {_items.Count} items, R/U & Research indexes built.");
+        _log?.LogInfo($"[JEI] Catalog: {_items.Count} items, {_attributes.Count} attributes, R/U & Culinary indexes built.");
         return true;
+    }
+
+    private static void ScanFoodDatabase()
+    {
+        try
+        {
+            HRFoodDatabase.EnsureLoaded();
+
+            // Mark known food ingredients, consumables, and vessels
+            if (HRFoodDatabase.IngredientsByItemID != null)
+            {
+                foreach (var kv in HRFoodDatabase.IngredientsByItemID)
+                {
+                    int itemId = kv.Key;
+                    if (_items.TryGetValue(itemId, out var entry))
+                        entry.IsFood = true;
+                }
+            }
+
+            if (HRFoodDatabase.ConsumablesByItemID != null)
+            {
+                foreach (var kv in HRFoodDatabase.ConsumablesByItemID)
+                {
+                    int itemId = kv.Key;
+                    if (_items.TryGetValue(itemId, out var entry))
+                        entry.IsFood = true;
+                }
+            }
+
+            // Map ingredient NameKey -> ItemID
+            var nameKeyToItemId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            if (HRFoodDatabase.IngredientsByItemID != null)
+            {
+                foreach (var kv in HRFoodDatabase.IngredientsByItemID)
+                {
+                    var ingData = kv.Value;
+                    if (ingData != null && !string.IsNullOrEmpty(ingData.NameKey))
+                    {
+                        if (!nameKeyToItemId.ContainsKey(ingData.NameKey))
+                            nameKeyToItemId[ingData.NameKey] = kv.Key;
+                    }
+                }
+            }
+
+            // Process all Signature Recipes & Family Recipes
+            var recipesToProcess = new List<HRFoodSignatureRecipeData>();
+            if (HRFoodDatabase.SignatureRecipes != null)
+            {
+                foreach (var r in HRFoodDatabase.SignatureRecipes)
+                    if (r != null && !recipesToProcess.Contains(r)) recipesToProcess.Add(r);
+            }
+            if (HRFoodDatabase.FamilyRecipes != null)
+            {
+                foreach (var r in HRFoodDatabase.FamilyRecipes)
+                    if (r != null && !recipesToProcess.Contains(r)) recipesToProcess.Add(r);
+            }
+
+            _log?.LogInfo($"[JEI] Processing {recipesToProcess.Count} signature food recipes...");
+
+            foreach (var sig in recipesToProcess)
+            {
+                int mealItemId = sig.VisualItemID;
+                if (mealItemId <= 0)
+                {
+                    try { mealItemId = HRFoodDatabase.ResolveMealVisualItemID(sig.ID, null); }
+                    catch (Exception) { }
+                }
+
+                if (mealItemId <= 0 || !_items.TryGetValue(mealItemId, out var mealEntry))
+                    continue;
+
+                mealEntry.IsFood = true;
+
+                int stnFlag = sig.StationCraftingFlags;
+                int stnItemId = ResolveStationItemId(stnFlag);
+                string stnName = ResolveStationName(stnFlag);
+
+                var r = new JeiRecipe
+                {
+                    ResultItemID = mealItemId,
+                    NumToCraft = 1,
+                    TimeToCraft = 3.0f,
+                    StationFlag = stnFlag,
+                    StationItemID = stnItemId,
+                    StationName = stnName,
+                    IsCooking = true,
+                    VesselType = sig.VesselType,
+                    SatiatingSeconds = sig.SatiatingSeconds,
+                    HydratingSeconds = sig.HydratingSeconds,
+                    RegenPercent = sig.RegenPercent
+                };
+
+                if (sig.Affixes != null)
+                {
+                    foreach (var aff in sig.Affixes)
+                    {
+                        if (aff == null) continue;
+                        int affId = aff.AffixID;
+                        if (affId > 0 && !r.FoodAffixIDs.Contains(affId))
+                            r.FoodAffixIDs.Add(affId);
+                    }
+                }
+
+                // Parse ingredients
+                if (sig.Ingredients != null)
+                {
+                    foreach (var ing in sig.Ingredients)
+                    {
+                        if (ing == null || string.IsNullOrEmpty(ing.NameKey)) continue;
+                        int count = Mathf.Max(1, ing.Count);
+
+                        int ingItemId = 0;
+                        if (nameKeyToItemId.TryGetValue(ing.NameKey, out int directId))
+                        {
+                            ingItemId = directId;
+                        }
+                        else
+                        {
+                            // Fallback lookup in items by name
+                            foreach (var it in _items.Values)
+                            {
+                                if (it.FallbackName != null && it.FallbackName.IndexOf(ing.NameKey, StringComparison.OrdinalIgnoreCase) >= 0)
+                                {
+                                    ingItemId = it.ItemID;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (ingItemId > 0)
+                        {
+                            r.Ingredients.Add(new KeyValuePair<int, int>(ingItemId, count));
+                            if (_items.TryGetValue(ingItemId, out var ingItemEntry))
+                            {
+                                ingItemEntry.IsFood = true;
+                                if (!ingItemEntry.Usages.Contains(r))
+                                    ingItemEntry.Usages.Add(r);
+                            }
+                        }
+                    }
+                }
+
+                // Add recipe to the meal item
+                if (!mealEntry.Recipes.Contains(r))
+                    mealEntry.Recipes.Add(r);
+
+                // Add to cooking station usages
+                if (stnItemId > 0 && _items.TryGetValue(stnItemId, out var stnEntry))
+                {
+                    if (!stnEntry.Usages.Contains(r))
+                        stnEntry.Usages.Add(r);
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            _log?.LogWarning($"[JEI] ScanFoodDatabase error: {e.Message}");
+        }
+    }
+
+    private static void ScanAttributeDatabase()
+    {
+        try
+        {
+            var gi = ModService.GameInstance;
+            var attrDb = gi?.MasterAttributeDB;
+            if (attrDb == null)
+            {
+                var dbs = Resources.FindObjectsOfTypeAll<HRAttributeDatabase>();
+                if (dbs != null && dbs.Length > 0) attrDb = dbs[0];
+            }
+
+            if (attrDb?.AttributeInfos == null)
+            {
+                _log?.LogWarning("[JEI] AttributeDB or AttributeInfos not found.");
+                return;
+            }
+
+            _log?.LogInfo($"[JEI] Scanning {attrDb.AttributeInfos.Length} attributes from MasterAttributeDB...");
+
+            foreach (var ai in attrDb.AttributeInfos)
+            {
+                if (ai == null || ai.ID <= 0) continue;
+
+                var entry = new JeiAttributeEntry
+                {
+                    ID = ai.ID,
+                    StringID = ai.StringID,
+                    TitleEn = ai.Title,
+                    TitleColor = ai.TitleColor.a > 0.05f ? ai.TitleColor : Color.white,
+                    Icon = ai.Icon
+                };
+
+                // Formatted description in English
+                string descFormatEn = ai.DescriptionFormat;
+                if (!string.IsNullOrEmpty(descFormatEn))
+                {
+                    if (ai.DescriptionsVar != null && ai.DescriptionsVar.Length > 0)
+                    {
+                        try
+                        {
+                            var args = new object[ai.DescriptionsVar.Length];
+                            for (int i = 0; i < ai.DescriptionsVar.Length; i++) args[i] = ai.DescriptionsVar[i];
+                            entry.DescriptionEn = string.Format(descFormatEn, args);
+                        }
+                        catch (Exception) { entry.DescriptionEn = descFormatEn; }
+                    }
+                    else
+                    {
+                        entry.DescriptionEn = descFormatEn;
+                    }
+                }
+
+                // Russian / localized title and description via game's localization
+                try
+                {
+                    if (attrDb.GetLocalizedTitleDesSplit(ai, out string locTitle, out var locDescs))
+                    {
+                        if (!string.IsNullOrEmpty(locTitle)) entry.TitleRu = locTitle;
+                        if (locDescs != null && locDescs.Length > 0)
+                        {
+                            entry.DescriptionRu = string.Join(" ", locDescs);
+                        }
+                    }
+                }
+                catch (Exception) { }
+
+                if (string.IsNullOrEmpty(entry.TitleRu)) entry.TitleRu = entry.TitleEn;
+                if (string.IsNullOrEmpty(entry.DescriptionRu)) entry.DescriptionRu = entry.DescriptionEn;
+
+                // Determine category
+                string searchKey = ((entry.StringID ?? "") + " " + (entry.TitleEn ?? "") + " " + (entry.DescriptionEn ?? "")).ToLowerInvariant();
+                if (searchKey.Contains("damage") || searchKey.Contains("attack") || searchKey.Contains("crit") || searchKey.Contains("fire") || searchKey.Contains("burn") || searchKey.Contains("ice") || searchKey.Contains("freeze") || searchKey.Contains("shock") || searchKey.Contains("poison") || searchKey.Contains("bleed") || searchKey.Contains("pierce"))
+                {
+                    entry.Category = "Combat";
+                }
+                else if (searchKey.Contains("defense") || searchKey.Contains("armor") || searchKey.Contains("health") || searchKey.Contains("shield") || searchKey.Contains("resist") || searchKey.Contains("guard") || searchKey.Contains("block") || searchKey.Contains("heal") || searchKey.Contains("regen"))
+                {
+                    entry.Category = "Defense";
+                }
+                else if (searchKey.Contains("food") || searchKey.Contains("hunger") || searchKey.Contains("satiat") || searchKey.Contains("hydrat") || searchKey.Contains("thirst") || searchKey.Contains("taste") || searchKey.Contains("dish") || searchKey.Contains("meal"))
+                {
+                    entry.Category = "Food";
+                }
+                else
+                {
+                    entry.Category = "Utility";
+                }
+
+                _attributes.Add(entry);
+                _attributesById[entry.ID] = entry;
+            }
+
+            // Link attributes to meals that grant them
+            foreach (var item in _items.Values)
+            {
+                foreach (var r in item.Recipes)
+                {
+                    if (r.IsCooking && r.FoodAffixIDs != null)
+                    {
+                        foreach (int affId in r.FoodAffixIDs)
+                        {
+                            if (_attributesById.TryGetValue(affId, out var attrEntry))
+                            {
+                                if (!attrEntry.AssociatedFoodItemIDs.Contains(item.ItemID))
+                                    attrEntry.AssociatedFoodItemIDs.Add(item.ItemID);
+                            }
+                        }
+                    }
+                }
+            }
+
+            _attributes.Sort((a, b) => a.ID.CompareTo(b.ID));
+            _log?.LogInfo($"[JEI] Attributes loaded: {_attributes.Count} entries.");
+        }
+        catch (Exception e)
+        {
+            _log?.LogWarning($"[JEI] ScanAttributeDatabase error: {e.Message}");
+        }
     }
 
     private static void ScanSkillTrees(HRSkillTree primaryTree)
@@ -361,7 +804,6 @@ internal static class JeiCatalog
             int sp = node.SkillPoints;
             if (sp <= 0) sp = node._SkillPoints;
 
-            // Build requirement description in both RU and EN
             string reqTextRu = BuildNodeRequirementText(node, true, out int reqItemId, out int reqItemCount);
             string reqTextEn = BuildNodeRequirementText(node, false, out _, out _);
 
@@ -530,6 +972,7 @@ internal static class JeiCatalog
                 if (foundId > 0)
                 {
                     _stationItemIds[flag] = foundId;
+                    _allStationItemIds.Add(foundId);
                     break;
                 }
             }

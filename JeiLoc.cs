@@ -28,12 +28,15 @@ internal static class JeiLoc
 
     public static string Pick(string ru, string en) => IsRu ? ru : en;
 
-    // --- Header & Search ---
+    // --- Header & Mode Tabs ---
     public static string HeaderTitle => Pick(
         "JEI  •  КАТАЛОГ ПРЕДМЕТОВ И РЕЦЕПТОВ",
         "JEI  •  ITEM & RECIPE CATALOG");
 
     public static string LangButton => IsRu ? "Lang: RU" : "Lang: EN";
+
+    public static string ModeCatalog => Pick("ПРЕДМЕТЫ", "ITEMS");
+    public static string ModeAttributes => Pick("АТРИБУТЫ", "ATTRIBUTES");
 
     public static string SearchLabel => Pick("Поиск:", "Search:");
 
@@ -41,11 +44,30 @@ internal static class JeiLoc
         $"Предметов: {count}",
         $"Items: {count}");
 
+    public static string AttrCount(int count) => Pick(
+        $"Атрибутов: {count}",
+        $"Attributes: {count}");
+
+    // --- Item Category Filters ---
+    public static string CatAll => Pick("ВСЁ", "ALL");
+    public static string CatWeapons => Pick("ОРУЖИЕ", "WEAPONS");
+    public static string CatArmor => Pick("БРОНЯ", "ARMOR");
+    public static string CatFood => Pick("ЕДА", "FOOD");
+    public static string CatMaterials => Pick("МАТЕРИАЛЫ", "MATERIALS");
+    public static string CatBuilding => Pick("СТРОЙКА", "BUILDING");
+    public static string CatStations => Pick("СТАНКИ", "STATIONS");
+    public static string CatConsumables => Pick("РАСХОДНИКИ", "CONSUMABLES");
+
+    // --- Attribute Category Filters ---
+    public static string AttrCatAll => Pick("ВСЕ", "ALL");
+    public static string AttrCatCombat => Pick("БОЙ", "COMBAT");
+    public static string AttrCatDefense => Pick("ЗАЩИТА", "DEFENSE");
+    public static string AttrCatFood => Pick("ЕДА", "FOOD");
+    public static string AttrCatUtility => Pick("ПРОЧЕЕ", "UTILITY");
+
     // --- Bottom bar & Tabs ---
     public static string CloseButton => Pick("ЗАКРЫТЬ (J / ESC)", "CLOSE (J / ESC)");
-
     public static string SpawnOne => Pick("СПАВН x1", "SPAWN x1");
-
     public static string SpawnBatch(int count) => Pick($"СПАВН x{count}", $"SPAWN x{count}");
 
     public static string TabRecipes(int? count = null) => count.HasValue
@@ -65,7 +87,16 @@ internal static class JeiLoc
         "Нажмите на любую ячейку слева, чтобы увидеть цену, дерево изучения, станок и интерактивные рецепты.",
         "Click any cell on the left to view item price, research tree, crafting station, and interactive recipes.");
 
+    public static string SelectAttrPrompt => Pick(
+        "<color=#9AA4B8>Выберите атрибут в списке слева</color>",
+        "<color=#9AA4B8>Select an attribute from the list on the left</color>");
+
+    public static string SelectAttrHint => Pick(
+        "Нажмите на атрибут, чтобы увидеть его точные параметры, описание эффекта и список связанных предметов и блюд.",
+        "Click an attribute to view its detailed effect formula, perk stats, and associated meals or items.");
+
     public static string RecipesDefaultHeader => Pick("--- РЕЦЕПТЫ ---", "--- RECIPES ---");
+    public static string AttrDefaultHeader => Pick("--- ЭФФЕКТ АТРИБУТА ---", "--- ATTRIBUTE EFFECT ---");
 
     // --- Detail Panel Populated ---
     public static string BasePriceLabel => Pick("База:", "Base:");
@@ -89,11 +120,24 @@ internal static class JeiLoc
         "<color=#8892A6>Не используется в рецептах.</color>",
         "<color=#8892A6>Not used in any recipes.</color>");
 
-    // --- Recipe Cards ---
+    // --- Recipe Cards & Cooking ---
     public static string StationLabel => Pick("Станок:", "Station:");
     public static string TimeLabel => Pick("Время:", "Time:");
     public static string SecondsUnit => Pick("сек.", "s");
     public static string NoIngredients => Pick("   <color=#8892A6>• Без ингредиентов</color>", "   <color=#8892A6>• No ingredients</color>");
+    public static string CookingLabel => Pick("Кулинария:", "Cooking:");
+    public static string VesselLabel => Pick("Посуда:", "Vessel:");
+    public static string SatiationLabel => Pick("Сытость:", "Satiation:");
+    public static string HydrationLabel => Pick("Жажда:", "Hydration:");
+    public static string RegenLabel => Pick("Регенерация:", "Regen:");
+    public static string AffixesLabel => Pick("Эффект:", "Perk/Affix:");
+
+    // --- Attribute Explorer Details ---
+    public static string AttrCategoryLabel => Pick("Категория:", "Category:");
+    public static string AttrInternalIdLabel => Pick("ID в коде:", "Internal ID:");
+    public static string AttrEffectHeader => Pick("ОПИСАНИЕ ЭФФЕКТА", "EFFECT DESCRIPTION");
+    public static string AttrFoodHeader => Pick("ДАЁТСЯ БЛЮДАМИ:", "GRANTED BY MEALS:");
+    public static string AttrNoDescription => Pick("Пассивный модификатор или особый статус игры.", "Passive modifier or special in-game status.");
 
     // --- Research / Unlock ---
     public static string ResearchNotRequired => Pick(
