@@ -470,6 +470,8 @@ internal static class JeiCatalog
         _log?.LogInfo($"[JEI] Scan: itemDb={(itemDb != null)}, craftDb={(craftingDb != null)}, items={(itemDb?.ItemArray != null ? itemDb.ItemArray.Length : 0)}, recipes={(craftingDb?.CraftableItems != null ? craftingDb.CraftableItems.Length : 0)}");
         if (itemDb == null && craftingDb == null) return false;
 
+        VintageShowcaseIntegration.EnsureRegistered(itemDb, craftingDb, _log);
+
         _items.Clear();
         _stationItemIds.Clear();
         _allStationItemIds.Clear();
@@ -506,7 +508,17 @@ internal static class JeiCatalog
 
         // Localized item names
         foreach (var e in _items.Values)
-            e.Name = HRItemDatabase.GetLocalizedItemNameByID(e.ItemID, e.FallbackName);
+        {
+            if (e.ItemID == VintageShowcaseIntegration.VintageShowcaseItemID)
+            {
+                e.Name = JeiLoc.IsRu ? VintageShowcaseIntegration.ShowcaseNameRu : VintageShowcaseIntegration.ShowcaseNameEn;
+                e.FallbackName = VintageShowcaseIntegration.ShowcaseNameEn;
+            }
+            else
+            {
+                e.Name = HRItemDatabase.GetLocalizedItemNameByID(e.ItemID, e.FallbackName);
+            }
+        }
 
         // 2. Station ItemIDs from CraftingTableReferences
         if (craftingDb?.CraftingTableReferences != null)
