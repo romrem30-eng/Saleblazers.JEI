@@ -129,6 +129,8 @@ public static class VintageShowcaseIntegration
             if (col == null) col = _showcasePrefab.AddComponent<BoxCollider>();
             col.center = new Vector3(0f, 0.425f, 0f);
             col.size = new Vector3(0.60f, 0.85f, 0.50f);
+            col.isTrigger = true; // Crucial: trigger while held prevents physics pushback against player
+            col.gameObject.layer = templateItem.ItemPrefab.layer;
 
             // 5. Configure DisplaySockets on HRDisplayContainer
             var displayContainer = _showcasePrefab.GetComponentInChildren<HRDisplayContainer>();
@@ -195,7 +197,8 @@ public static class VintageShowcaseIntegration
         var submeshIndices = new List<int>[] {
             new List<int>(), // 0: Wood
             new List<int>(), // 1: Glass
-            new List<int>()  // 2: Brass
+            new List<int>(), // 2: Brass
+            new List<int>()  // 3: White display floor
         };
 
         var finalVerts = new List<Vector3>();
@@ -215,6 +218,7 @@ public static class VintageShowcaseIntegration
                 string mtl = l.Substring(7).Trim();
                 if (mtl.IndexOf("Glass", StringComparison.OrdinalIgnoreCase) >= 0) curSubmesh = 1;
                 else if (mtl.IndexOf("Brass", StringComparison.OrdinalIgnoreCase) >= 0) curSubmesh = 2;
+                else if (mtl.IndexOf("White", StringComparison.OrdinalIgnoreCase) >= 0 || mtl.IndexOf("Floor", StringComparison.OrdinalIgnoreCase) >= 0) curSubmesh = 3;
                 else curSubmesh = 0;
                 continue;
             }
@@ -225,7 +229,8 @@ public static class VintageShowcaseIntegration
                 float x = float.Parse(p[1], CultureInfo.InvariantCulture);
                 float y = float.Parse(p[2], CultureInfo.InvariantCulture);
                 float z = float.Parse(p[3], CultureInfo.InvariantCulture);
-                rawPos.Add(new Vector3(x, y, z));
+                // Convert right-handed OBJ coordinates to Unity left-handed: flip Z
+                rawPos.Add(new Vector3(x, y, -z));
             }
             else if (l.StartsWith("vt "))
             {
@@ -240,7 +245,8 @@ public static class VintageShowcaseIntegration
                 float nx = float.Parse(p[1], CultureInfo.InvariantCulture);
                 float ny = float.Parse(p[2], CultureInfo.InvariantCulture);
                 float nz = float.Parse(p[3], CultureInfo.InvariantCulture);
-                rawNorm.Add(new Vector3(nx, ny, nz));
+                // Convert right-handed OBJ normal to Unity left-handed: flip nz
+                rawNorm.Add(new Vector3(nx, ny, -nz));
             }
             else if (l.StartsWith("f "))
             {
@@ -257,7 +263,7 @@ public static class VintageShowcaseIntegration
                         int vnI = s.Length > 2 && !string.IsNullOrEmpty(s[2]) ? int.Parse(s[2]) - 1 : -1;
 
                         idx = finalVerts.Count;
-                        finalVerts.Add(rawPos[vI]);
+                        finalVerts.Add(vI >= 0 && vI < rawPos.Count ? rawPos[vI] : Vector3.zero);
                         finalUvs.Add(vtI >= 0 && vtI < rawUv.Count ? rawUv[vtI] : Vector2.zero);
                         finalNorms.Add(vnI >= 0 && vnI < rawNorm.Count ? rawNorm[vnI] : Vector3.up);
                         vertMap[key] = idx;
@@ -265,41 +271,45 @@ public static class VintageShowcaseIntegration
                     faceIdx.Add(idx);
                 }
 
+                // Reverse winding order (faceIdx[0], faceIdx[i + 1], faceIdx[i]) for Unity clockwise front faces
                 for (int i = 1; i < faceIdx.Count - 1; i++)
                 {
                     submeshIndices[curSubmesh].Add(faceIdx[0]);
-                    submeshIndices[curSubmesh].Add(faceIdx[i]);
                     submeshIndices[curSubmesh].Add(faceIdx[i + 1]);
+                    submeshIndices[curSubmesh].Add(faceIdx[i]);
                 }
             }
         }
 
         var mesh = new Mesh();
         mesh.name = "VintageShowcase_Mesh";
-        mesh.subMeshCount = 3;
+        mesh.subMeshCount = 4;
         mesh.vertices = new Il2CppStructArray<Vector3>(finalVerts.ToArray());
         mesh.uv = new Il2CppStructArray<Vector2>(finalUvs.ToArray());
         mesh.normals = new Il2CppStructArray<Vector3>(finalNorms.ToArray());
 
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 4; i++)
         {
             var arr = new Il2CppStructArray<int>(submeshIndices[i].ToArray());
             mesh.SetTriangles(arr, i);
         }
 
+        mesh.RecalculateNormals();
+        mesh.RecalculateTangents();
         mesh.RecalculateBounds();
         return mesh;
     }
 
     private static Mesh BuildProceduralShowcaseMesh()
     {
-        var mesh = new Mesh { name = "VintageShowcase_ProceduralMesh", subMeshCount = 3 };
+        var mesh = new Mesh { name = "VintageShowcase_ProceduralMesh", subMeshCount = 4 };
         var verts = new List<Vector3>();
         var uvs = new List<Vector2>();
         var norms = new List<Vector3>();
         var trisWood = new List<int>();
         var trisGlass = new List<int>();
         var trisBrass = new List<int>();
+        var trisFloor = new List<int>();
 
         void AddBox(Vector3 center, Vector3 size, List<int> triList)
         {
@@ -347,6 +357,9 @@ public static class VintageShowcaseIntegration
         AddBox(new Vector3(0f, 0.05f, 0f), new Vector3(0.63f, 0.03f, 0.53f), trisWood);
         AddBox(new Vector3(0f, 0.07f, 0f), new Vector3(0.60f, 0.02f, 0.50f), trisWood);
 
+        // Display floor
+        AddBox(new Vector3(0f, 0.082f, 0f), new Vector3(0.54f, 0.005f, 0.44f), trisFloor);
+
         // 4 corner posts
         float cx = 0.28f, cz = 0.23f;
         AddBox(new Vector3(-cx, 0.44f, -cz), new Vector3(0.04f, 0.72f, 0.04f), trisWood);
@@ -374,8 +387,61 @@ public static class VintageShowcaseIntegration
         mesh.SetTriangles(new Il2CppStructArray<int>(trisWood.ToArray()), 0);
         mesh.SetTriangles(new Il2CppStructArray<int>(trisGlass.ToArray()), 1);
         mesh.SetTriangles(new Il2CppStructArray<int>(trisBrass.ToArray()), 2);
+        mesh.SetTriangles(new Il2CppStructArray<int>(trisFloor.ToArray()), 3);
+        mesh.RecalculateNormals();
+        mesh.RecalculateTangents();
         mesh.RecalculateBounds();
         return mesh;
+    }
+
+    private static void SetMaterialColor(Material mat, Color col)
+    {
+        if (mat == null) return;
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", col);
+        if (mat.HasProperty("_Color")) mat.SetColor("_Color", col);
+        mat.color = col;
+    }
+
+    private static Material CreateLitMaterial(Shader shader, Color col, float metallic, float smoothness)
+    {
+        var mat = new Material(shader);
+        SetMaterialColor(mat, col);
+        if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", metallic);
+        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", smoothness);
+        if (mat.HasProperty("_Roughness")) mat.SetFloat("_Roughness", 1f - smoothness);
+        if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", Texture2D.whiteTexture);
+        if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", Texture2D.whiteTexture);
+        if (mat.HasProperty("_BumpMap")) mat.SetTexture("_BumpMap", null);
+        return mat;
+    }
+
+    private static Material CreateGlassMaterial(Shader shader)
+    {
+        var mat = new Material(shader);
+        mat.name = "VintageShowcase_Glass";
+
+        var glassColor = new Color(0.88f, 0.96f, 1.0f, 0.16f);
+        SetMaterialColor(mat, glassColor);
+
+        // Standard URP Lit transparency setup
+        if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1.0f);
+        if (mat.HasProperty("_Blend")) mat.SetFloat("_Blend", 0.0f);
+        if (mat.HasProperty("_SrcBlend")) mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        if (mat.HasProperty("_DstBlend")) mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 0);
+        if (mat.HasProperty("_Cull")) mat.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
+
+        mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        mat.DisableKeyword("_ALPHATEST_ON");
+        mat.EnableKeyword("_ALPHABLEND_ON");
+        mat.renderQueue = 3000;
+
+        if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.05f);
+        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.98f);
+        if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", Texture2D.whiteTexture);
+        if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", Texture2D.whiteTexture);
+
+        return mat;
     }
 
     private static void SetupVisualModel(GameObject prefab, Mesh mesh, GameObject templatePrefab, ManualLogSource log)
@@ -399,45 +465,55 @@ public static class VintageShowcaseIntegration
         var mr = visualObj.AddComponent<MeshRenderer>();
 
         // Materials setup
-        Material woodMat = null;
+        Shader litShader = Shader.Find("Universal Render Pipeline/Lit");
+        if (litShader == null)
+        {
+            var templateRenderers = templatePrefab.GetComponentsInChildren<MeshRenderer>(true);
+            if (templateRenderers.Length > 0 && templateRenderers[0].sharedMaterial != null)
+            {
+                litShader = templateRenderers[0].sharedMaterial.shader;
+            }
+        }
+        if (litShader == null) litShader = Shader.Find("Standard");
+
+        // 1. Rich dark walnut wood frame
+        var woodMat = CreateLitMaterial(litShader, new Color(0.38f, 0.20f, 0.10f, 1.0f), 0.05f, 0.50f);
+        woodMat.name = "VintageShowcase_Wood";
+
+        // 2. Crystal clear glass
         Material glassMat = null;
-
-        var templateRenderers = templatePrefab.GetComponentsInChildren<MeshRenderer>(true);
-        if (templateRenderers.Length > 0 && templateRenderers[0].sharedMaterial != null)
+        foreach (var m in Resources.FindObjectsOfTypeAll<Material>())
         {
-            woodMat = new Material(templateRenderers[0].sharedMaterial);
-            woodMat.color = new Color(0.42f, 0.24f, 0.12f, 1.0f);
-        }
-        else
-        {
-            woodMat = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"))
+            if (m == null || string.IsNullOrEmpty(m.name)) continue;
+            string n = m.name.ToLowerInvariant();
+            if ((n.Contains("glass") || n.Contains("window")) && (m.renderQueue >= 3000 || m.HasProperty("_Surface")))
             {
-                color = new Color(0.42f, 0.24f, 0.12f, 1.0f)
-            };
-        }
-
-        foreach (var mat in Resources.FindObjectsOfTypeAll<Material>())
-        {
-            if (mat == null) continue;
-            string n = mat.name.ToLowerInvariant();
-            if (glassMat == null && (n.Contains("glass") || n.Contains("window") || n.Contains("bottle")))
-            {
-                glassMat = mat;
+                glassMat = new Material(m);
+                log?.LogInfo($"[VintageShowcase] Cloned game glass material: '{m.name}'");
+                break;
             }
         }
 
         if (glassMat == null)
         {
-            glassMat = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
-            glassMat.color = new Color(0.85f, 0.94f, 1.0f, 0.25f);
+            glassMat = CreateGlassMaterial(litShader);
+        }
+        else
+        {
+            SetMaterialColor(glassMat, new Color(0.88f, 0.96f, 1.0f, 0.16f));
+            if (glassMat.HasProperty("_Cull")) glassMat.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
+            glassMat.renderQueue = 3000;
         }
 
-        var brassMat = new Material(woodMat.shader);
-        brassMat.color = new Color(0.85f, 0.65f, 0.22f, 1.0f);
-        if (brassMat.HasProperty("_Metallic")) brassMat.SetFloat("_Metallic", 0.9f);
-        if (brassMat.HasProperty("_Smoothness")) brassMat.SetFloat("_Smoothness", 0.75f);
+        // 3. Polished brass knob
+        var brassMat = CreateLitMaterial(litShader, new Color(0.95f, 0.78f, 0.28f, 1.0f), 0.95f, 0.88f);
+        brassMat.name = "VintageShowcase_Brass";
 
-        mr.sharedMaterials = new Il2CppReferenceArray<Material>(new[] { woodMat, glassMat, brassMat });
+        // 4. Warm cream display floor
+        var floorMat = CreateLitMaterial(litShader, new Color(0.92f, 0.90f, 0.86f, 1.0f), 0.05f, 0.35f);
+        floorMat.name = "VintageShowcase_Floor";
+
+        mr.sharedMaterials = new Il2CppReferenceArray<Material>(new[] { woodMat, glassMat, brassMat, floorMat });
 
         var placeable = prefab.GetComponentInChildren<BaseItemPlaceable>();
         if (placeable != null)
@@ -445,6 +521,29 @@ public static class VintageShowcaseIntegration
             placeable.SetMeshRendererGameObject(visualObj);
             placeable.GridSize = 0.5f;
             placeable.bPlacementSnapToGrid = true;
+
+            // When placed on plot, enable physical collision
+            var existingPlaced = placeable.OnPlacedDelegate;
+            placeable.OnPlacedDelegate = Il2CppInterop.Runtime.DelegateSupport.ConvertDelegate<BaseItemPlaceable.BaseItemPlacedSignature>(new Action<BaseItemPlaceable, Vector3, Quaternion>((p, pos, rot) =>
+            {
+                try
+                {
+                    if (p != null)
+                    {
+                        var bCol = p.GetComponent<BoxCollider>() ?? p.GetComponentInChildren<BoxCollider>();
+                        if (bCol != null)
+                        {
+                            bCol.isTrigger = false;
+                            bCol.enabled = true;
+                        }
+                    }
+                    existingPlaced?.Invoke(p, pos, rot);
+                }
+                catch (Exception ex)
+                {
+                    log?.LogWarning($"[VintageShowcase] OnPlaced error: {ex.Message}");
+                }
+            }));
         }
     }
 
@@ -466,10 +565,12 @@ public static class VintageShowcaseIntegration
             socketObj.transform.SetParent(root, false);
             socketObj.transform.localPosition = socketPositions[i];
             socketObj.transform.localRotation = Quaternion.identity;
+            socketObj.layer = root.gameObject.layer;
 
             var col = socketObj.AddComponent<BoxCollider>();
             col.center = new Vector3(0f, 0.15f, 0f);
             col.size = new Vector3(0.24f, 0.30f, 0.22f);
+            col.isTrigger = true; // MUST be trigger: display sockets only detect cursor hover, never block movement!
 
             var s = new DisplaySocket();
             s.Start = socketObj.transform;

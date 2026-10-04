@@ -1554,6 +1554,21 @@ internal static class JeiUI
 
                 if (weapon == null) break;
 
+                // Ensure physical collision between player character and held weapon colliders is ignored
+                try
+                {
+                    var pColliders = pawn.GetComponentsInChildren<Collider>(true);
+                    var wColliders = weapon.GetComponentsInChildren<Collider>(true);
+                    foreach (var pc in pColliders)
+                    {
+                        foreach (var wc in wColliders)
+                        {
+                            Physics.IgnoreCollision(pc, wc, true);
+                        }
+                    }
+                }
+                catch (Exception) { }
+
                 int maxStack = 1;
                 try { maxStack = Mathf.Max(1, weapon.StackLimit); } catch (Exception) { }
                 int batch = Mathf.Min(remaining, maxStack);
