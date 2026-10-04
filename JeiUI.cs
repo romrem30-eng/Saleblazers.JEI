@@ -1214,7 +1214,7 @@ internal static class JeiUI
         if (!string.IsNullOrEmpty(a.StringID))
             hsb.Append(" <color=#7E889B>(").Append(a.StringID).Append(")</color>");
         hsb.AppendLine();
-        hsb.Append("<color=#B0B8C8>").Append(JeiLoc.AttrCategoryLabel).Append("</color> <color=#6EC6F5>").Append(a.Category).Append("</color>");
+        hsb.Append("<color=#B0B8C8>").Append(JeiLoc.AttrCategoryLabel).Append("</color> <color=#6EC6F5>").Append(a.LocalizedCategory).Append("</color>");
         if (!string.IsNullOrEmpty(a.MinRarity))
             hsb.Append("  |  <color=#B0B8C8>").Append(JeiLoc.AttrRarityLabel).Append("</color> <color=#F5D76E>").Append(a.MinRarity).Append("</color>");
         _detailHeaderText.text = hsb.ToString();

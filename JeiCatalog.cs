@@ -90,13 +90,45 @@ public class JeiAttributeEntry
     public string AppliesToRu;
     public string AppliesToEn;
     public string MinRarity;
-    public string SourceName;
+    public string SourceNameRu;
+    public string SourceNameEn;
+    private string _sourceNameFallback;
     public string RequirementsText;
 
     // Associated items: meals, ingredients, weapons/gear
     public List<int> AssociatedFoodItemIDs = new();
     public List<int> AssociatedIngredientItemIDs = new();
     public List<int> AssociatedGearItemIDs = new();
+
+    public string LocalizedCategory => Category switch
+    {
+        "Combat" => JeiLoc.AttrCatCombat,
+        "Defense" => JeiLoc.AttrCatDefense,
+        "Food" => JeiLoc.AttrCatFood,
+        _ => JeiLoc.AttrCatUtility
+    };
+
+    public string SourceName
+    {
+        get
+        {
+            if (JeiLoc.IsRu)
+            {
+                if (!string.IsNullOrEmpty(SourceNameRu)) return SourceNameRu;
+                if (!string.IsNullOrEmpty(SourceNameEn)) return SourceNameEn;
+            }
+            else
+            {
+                if (!string.IsNullOrEmpty(SourceNameEn)) return SourceNameEn;
+                if (!string.IsNullOrEmpty(SourceNameRu)) return SourceNameRu;
+            }
+            return _sourceNameFallback;
+        }
+        set
+        {
+            _sourceNameFallback = value;
+        }
+    }
 
     public string Title
     {
@@ -109,6 +141,8 @@ public class JeiAttributeEntry
             }
             else
             {
+                if (!string.IsNullOrEmpty(TitleEn) && !JeiCatalog.HasCyrillic(TitleEn)) return TitleEn;
+                if (!string.IsNullOrEmpty(StringID)) return JeiCatalog.CleanAttributeName(StringID);
                 if (!string.IsNullOrEmpty(TitleEn)) return TitleEn;
                 if (!string.IsNullOrEmpty(TitleRu)) return TitleRu;
             }
@@ -127,6 +161,7 @@ public class JeiAttributeEntry
             }
             else
             {
+                if (!string.IsNullOrEmpty(DescriptionEn) && !JeiCatalog.HasCyrillic(DescriptionEn)) return DescriptionEn;
                 if (!string.IsNullOrEmpty(DescriptionEn)) return DescriptionEn;
                 if (!string.IsNullOrEmpty(DescriptionRu)) return DescriptionRu;
             }
@@ -687,141 +722,331 @@ internal static class JeiCatalog
         }
     }
 
+    internal static bool HasCyrillic(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return false;
+        for (int i = 0; i < s.Length; i++)
+            if (s[i] >= '\u0400' && s[i] <= '\u04FF') return true;
+        return false;
+    }
+
     // --- Unique Game Attributes Knowledge Base (Detailed mechanics for non-numeric & boss traits) ---
-    private static readonly Dictionary<string, (string titleRu, string descRu, string descEn, string appliesRu, string appliesEn, string sourceRu, string sourceEn)> _uniqueAttributeKnowledge = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, (string titleRu, string titleEn, string descRu, string descEn, string appliesRu, string appliesEn, string sourceRu, string sourceEn)> _uniqueAttributeKnowledge = new(StringComparer.OrdinalIgnoreCase)
     {
         ["BellstalkerBlessing"] = (
-            "Благословение Беллсталкера",
+            "Благословение Беллсталкера", "Bellstalker's Blessing",
             "Древняя защита от ночных хищников. Снижает агрессию ночных сталкеров и увеличивает ценность редкой добычи при ночной охоте.",
             "Ancient protection against nocturnal stalkers. Decreases night predator aggression and increases rare loot drops during night hunts.",
             "Персонаж (пассивно)", "Player Character (passive)",
             "Победа над Беллсталкером / Ночной алтарь", "Defeating Bellstalker / Night Shrine"
         ),
         ["HRBellstalkerBlessingAttribute"] = (
-            "Благословение Беллсталкера",
+            "Благословение Беллсталкера", "Bellstalker's Blessing",
+            "Древняя защита от ночных хищников. Снижает агрессию ночных сталкеров и увеличивает ценность редкой добычи при ночной охоте.",
+            "Ancient protection against nocturnal stalkers. Decreases night predator aggression and increases rare loot drops during night hunts.",
+            "Персонаж (пассивно)", "Player Character (passive)",
+            "Победа над Беллсталкером / Ночной алтарь", "Defeating Bellstalker / Night Shrine"
+        ),
+        ["Благословение Беллсталкера"] = (
+            "Благословение Беллсталкера", "Bellstalker's Blessing",
             "Древняя защита от ночных хищников. Снижает агрессию ночных сталкеров и увеличивает ценность редкой добычи при ночной охоте.",
             "Ancient protection against nocturnal stalkers. Decreases night predator aggression and increases rare loot drops during night hunts.",
             "Персонаж (пассивно)", "Player Character (passive)",
             "Победа над Беллсталкером / Ночной алтарь", "Defeating Bellstalker / Night Shrine"
         ),
         ["BarterDifficultyModifier"] = (
-            "Мастерство торга",
+            "Мастерство торга", "Barter Mastery",
+            "Изменяет терпение покупателей и сложность торговли в магазине, повышая шансы на успешную сделку по максимальной цене.",
+            "Modifies customer patience and negotiation difficulty in the shop, improving chances for maximum sale profit.",
+            "Торговля и магазин", "Shop & Bartering",
+            "Торговые навыки / Перки харизмы", "Trading Skills / Charisma Perks"
+        ),
+        ["Haggling"] = (
+            "Мастерство торга", "Barter Mastery",
+            "Изменяет терпение покупателей и сложность торговли в магазине, повышая шансы на успешную сделку по максимальной цене.",
+            "Modifies customer patience and negotiation difficulty in the shop, improving chances for maximum sale profit.",
+            "Торговля и магазин", "Shop & Bartering",
+            "Торговые навыки / Перки харизмы", "Trading Skills / Charisma Perks"
+        ),
+        ["HRHagglingAffix"] = (
+            "Мастерство торга", "Barter Mastery",
+            "Изменяет терпение покупателей и сложность торговли в магазине, повышая шансы на успешную сделку по максимальной цене.",
+            "Modifies customer patience and negotiation difficulty in the shop, improving chances for maximum sale profit.",
+            "Торговля и магазин", "Shop & Bartering",
+            "Торговые навыки / Перки харизмы", "Trading Skills / Charisma Perks"
+        ),
+        ["Мастерство торга"] = (
+            "Мастерство торга", "Barter Mastery",
             "Изменяет терпение покупателей и сложность торговли в магазине, повышая шансы на успешную сделку по максимальной цене.",
             "Modifies customer patience and negotiation difficulty in the shop, improving chances for maximum sale profit.",
             "Торговля и магазин", "Shop & Bartering",
             "Торговые навыки / Перки харизмы", "Trading Skills / Charisma Perks"
         ),
         ["CharacterOriginSpecial"] = (
-            "Черта происхождения",
+            "Черта происхождения", "Origin Trait",
             "Уникальный стартовый навык или пассивная черта, выбранная при создании персонажа (происхождение героя).",
             "Unique starting background trait chosen during character creation that permanently shapes hero abilities.",
             "Персонаж (постоянно)", "Player Character (permanent)",
             "Выбор предыстории персонажа", "Character Origin Selection"
         ),
         ["ConsumableHealingModifier"] = (
-            "Эффективность медицины",
+            "Эффективность медицины", "Medicine Potency",
             "Увеличивает количество здоровья, восстанавливаемое бинтами, лечебными зельями и аптечками.",
             "Increases the amount of health restored from bandages, healing potions, and first-aid kits.",
             "Медицина и расходники", "Medicine & Consumables",
             "Медицинские перки / Оснащение", "Medical Perks / Gear"
         ),
         ["Dirty"] = (
-            "Грязь",
+            "Грязь", "Covered in Dirt",
             "Персонаж испачкан. Снижает скорость передвижения и гигиену, ускоряя обезвоживание. Смывается в воде.",
             "Character is covered in mud/dirt. Reduces movement speed and hygiene while increasing dehydration rate. Wash in water.",
             "Персонаж (дебафф)", "Player Character (debuff)",
             "Грязевые ямы / Болота", "Mud pits / Swamp biomes"
         ),
         ["FreezeDeath"] = (
-            "Смертельное обморожение",
+            "Смертельное обморожение", "Lethal Hypothermia",
             "Критическое переохлаждение. Наносит непрерывный смертельный урон при падении температуры тела до нуля.",
             "Extreme lethal hypothermia. Inflicts severe damage over time when core body warmth drops to absolute zero.",
             "Персонаж (критический статус)", "Player Character (critical debuff)",
             "Ледяные биомы / Бураны", "Freezing Biomes / Blizzards"
         ),
         ["Frostbite"] = (
-            "Обморожение",
+            "Обморожение", "Frostbite",
             "Холод сковывает конечности. Снижает скорость атаки и восстановления выносливости в ледяных биомах.",
             "Biting cold stiffens muscles. Slows attack speed and stamina recovery in freezing environments.",
             "Персонаж (негативный статус)", "Player Character (debuff)",
             "Холодный ветер / Снежные бури", "Freezing Winds / Snowstorms"
         ),
         ["Pristine"] = (
-            "Идеальное состояние",
+            "Идеальное состояние", "Pristine",
+            "Предмет высочайшего качества без повреждений. Значительно увеличивает стоимость продажи и прочность.",
+            "Pristine item in flawless mint condition. Significantly increases selling value and item durability.",
+            "Предметы и экипировка", "Items & Equipment",
+            "Идеальный крафт / Редкие сундуки", "Perfect Crafting / Rare Loot"
+        ),
+        ["HRPristineAffix"] = (
+            "Идеальное состояние", "Pristine",
+            "Предмет высочайшего качества без повреждений. Значительно увеличивает стоимость продажи и прочность.",
+            "Pristine item in flawless mint condition. Significantly increases selling value and item durability.",
+            "Предметы и экипировка", "Items & Equipment",
+            "Идеальный крафт / Редкие сундуки", "Perfect Crafting / Rare Loot"
+        ),
+        ["Идеальное состояние"] = (
+            "Идеальное состояние", "Pristine",
             "Предмет высочайшего качества без повреждений. Значительно увеличивает стоимость продажи и прочность.",
             "Pristine item in flawless mint condition. Significantly increases selling value and item durability.",
             "Предметы и экипировка", "Items & Equipment",
             "Идеальный крафт / Редкие сундуки", "Perfect Crafting / Rare Loot"
         ),
         ["Radiation"] = (
-            "Лучевая болезнь",
+            "Радиация", "Radiation",
+            "Воздействие радиоактивных материалов или зон. Постепенно снижает максимальный запас здоровья, пока не принято лекарство.",
+            "Exposure to radioactive zones or materials. Gradually caps maximum health until treated with anti-radiation medicine.",
+            "Персонаж (радиация)", "Player Character (radiation)",
+            "Радиоактивные руды / Зараженные зоны", "Radioactive Ores / Contaminated Zones"
+        ),
+        ["Radioactive"] = (
+            "Радиоактивный", "Radioactive",
+            "Воздействие радиоактивных материалов или зон. Постепенно снижает максимальный запас здоровья, пока не принято лекарство.",
+            "Exposure to radioactive zones or materials. Gradually caps maximum health until treated with anti-radiation medicine.",
+            "Персонаж (радиация)", "Player Character (radiation)",
+            "Радиоактивные руды / Зараженные зоны", "Radioactive Ores / Contaminated Zones"
+        ),
+        ["Радиоактивный"] = (
+            "Радиоактивный", "Radioactive",
+            "Воздействие радиоактивных материалов или зон. Постепенно снижает максимальный запас здоровья, пока не принято лекарство.",
+            "Exposure to radioactive zones or materials. Gradually caps maximum health until treated with anti-radiation medicine.",
+            "Персонаж (радиация)", "Player Character (radiation)",
+            "Радиоактивные руды / Зараженные зоны", "Radioactive Ores / Contaminated Zones"
+        ),
+        ["Радиация"] = (
+            "Радиация", "Radiation",
             "Воздействие радиоактивных материалов или зон. Постепенно снижает максимальный запас здоровья, пока не принято лекарство.",
             "Exposure to radioactive zones or materials. Gradually caps maximum health until treated with anti-radiation medicine.",
             "Персонаж (радиация)", "Player Character (radiation)",
             "Радиоактивные руды / Зараженные зоны", "Radioactive Ores / Contaminated Zones"
         ),
         ["Starving"] = (
-            "Голод",
+            "Голод", "Starvation",
+            "Сытость на нуле. Резко снижает максимальную выносливость и скорость бега персонажа. Требуется еда.",
+            "Satiation depleted to zero. Heavily reduces maximum stamina pool and sprint speed. Consume food immediately.",
+            "Персонаж (критический статус)", "Player Character (critical debuff)",
+            "Отсутствие пищи", "Food Depletion"
+        ),
+        ["Hunger"] = (
+            "Голод", "Starvation",
+            "Сытость на нуле. Резко снижает максимальную выносливость и скорость бега персонажа. Требуется еда.",
+            "Satiation depleted to zero. Heavily reduces maximum stamina pool and sprint speed. Consume food immediately.",
+            "Персонаж (критический статус)", "Player Character (critical debuff)",
+            "Отсутствие пищи", "Food Depletion"
+        ),
+        ["Голод"] = (
+            "Голод", "Starvation",
             "Сытость на нуле. Резко снижает максимальную выносливость и скорость бега персонажа. Требуется еда.",
             "Satiation depleted to zero. Heavily reduces maximum stamina pool and sprint speed. Consume food immediately.",
             "Персонаж (критический статус)", "Player Character (critical debuff)",
             "Отсутствие пищи", "Food Depletion"
         ),
         ["Dehydrated"] = (
-            "Обезвоживание",
+            "Жажда", "Dehydration",
+            "Жажда на максимуме. Замедляет восстановление выносливости и увеличивает восприимчивость к перегреву. Требуется вода.",
+            "Hydration reached zero. Halves stamina regeneration rate and raises heat vulnerability. Drink water immediately.",
+            "Персонаж (критический статус)", "Player Character (critical debuff)",
+            "Отсутствие воды / Жара", "Water Depletion / Heat"
+        ),
+        ["Thirst"] = (
+            "Жажда", "Dehydration",
+            "Жажда на максимуме. Замедляет восстановление выносливости и увеличивает восприимчивость к перегреву. Требуется вода.",
+            "Hydration reached zero. Halves stamina regeneration rate and raises heat vulnerability. Drink water immediately.",
+            "Персонаж (критический статус)", "Player Character (critical debuff)",
+            "Отсутствие воды / Жара", "Water Depletion / Heat"
+        ),
+        ["Жажда"] = (
+            "Жажда", "Dehydration",
             "Жажда на максимуме. Замедляет восстановление выносливости и увеличивает восприимчивость к перегреву. Требуется вода.",
             "Hydration reached zero. Halves stamina regeneration rate and raises heat vulnerability. Drink water immediately.",
             "Персонаж (критический статус)", "Player Character (critical debuff)",
             "Отсутствие воды / Жара", "Water Depletion / Heat"
         ),
         ["Wet"] = (
-            "Намокание",
+            "Намокание", "Soaked / Wet",
+            "Персонаж или предмет намок. Повышает защиту от огня, но увеличивает урон от электричества и ускоряет замерзание.",
+            "Character or item is soaked. Increases fire resistance, but drastically amplifies electric damage and chill rate.",
+            "Персонаж и предметы", "Character & Items",
+            "Водоемы / Дождь", "Water Bodies / Rain"
+        ),
+        ["Намокание"] = (
+            "Намокание", "Soaked / Wet",
             "Персонаж или предмет намок. Повышает защиту от огня, но увеличивает урон от электричества и ускоряет замерзание.",
             "Character or item is soaked. Increases fire resistance, but drastically amplifies electric damage and chill rate.",
             "Персонаж и предметы", "Character & Items",
             "Водоемы / Дождь", "Water Bodies / Rain"
         ),
         ["Chilled"] = (
-            "Охлаждение",
+            "Охлаждение", "Chilled",
             "Воздействие холодной воды или стужи. Снижает скорость бега и постепенно расходует тепло тела.",
             "Cold immersion status. Decreases sprint speed and slowly drains body warmth reserves.",
             "Персонаж (статус)", "Player Character (status)",
             "Ледяная вода / Ночной холод", "Cold Water / Night Cold"
         ),
         ["Bleed"] = (
-            "Кровотечение",
+            "Кровотечение", "Bleeding",
+            "Глубокие раны. Наносит периодический физический урон в секунду. Складывается в серии ударов.",
+            "Deep lacerations inflicting periodic physical damage per second. Stacks upon multiple strikes.",
+            "Оружие и персонажи", "Weapons & Characters",
+            "Колющее / Режущее оружие / Когти хищников", "Slashing / Piercing Weapons / Predator Claws"
+        ),
+        ["HRBleedAffix"] = (
+            "Кровотечение", "Bleeding",
+            "Глубокие раны. Наносит периодический физический урон в секунду. Складывается в серии ударов.",
+            "Deep lacerations inflicting periodic physical damage per second. Stacks upon multiple strikes.",
+            "Оружие и персонажи", "Weapons & Characters",
+            "Колющее / Режущее оружие / Когти хищников", "Slashing / Piercing Weapons / Predator Claws"
+        ),
+        ["Кровавый"] = (
+            "Кровавый", "Bleeding",
+            "Глубокие раны. Наносит периодический физический урон в секунду. Складывается в серии ударов.",
+            "Deep lacerations inflicting periodic physical damage per second. Stacks upon multiple strikes.",
+            "Оружие и персонажи", "Weapons & Characters",
+            "Колющее / Режущее оружие / Когти хищников", "Slashing / Piercing Weapons / Predator Claws"
+        ),
+        ["Кровотечение"] = (
+            "Кровотечение", "Bleeding",
             "Глубокие раны. Наносит периодический физический урон в секунду. Складывается в серии ударов.",
             "Deep lacerations inflicting periodic physical damage per second. Stacks upon multiple strikes.",
             "Оружие и персонажи", "Weapons & Characters",
             "Колющее / Режущее оружие / Когти хищников", "Slashing / Piercing Weapons / Predator Claws"
         ),
         ["BleedStack"] = (
-            "Стек кровотечения",
+            "Стек кровотечения", "Bleed Buildup",
             "Уровень накопления кровотечения. При заполнении шкалы вызывает сильный всплеск физического урона.",
             "Bleed intensity stack. Triggers a massive burst of hemorrhage damage upon reaching maximum stacks.",
             "Оружие и персонажи", "Weapons & Characters",
             "Серийные режущие удары", "Continuous Slashing Combos"
         ),
         ["FireStack"] = (
-            "Накопление горения",
+            "Накопление горения", "Burn Buildup",
             "Уровень накопления огня. При заполнении шкалы поджигает цель, вызывая длительный периодический урон огнем.",
             "Fire accumulation stack. Ignites the target upon reaching full threshold, inflicting sustained burn damage.",
             "Оружие и стихии", "Weapons & Elements",
             "Огненное оружие / Костры / Факелы", "Fire Weapons / Campfires / Torches"
         ),
         ["Stolen"] = (
-            "Украденный предмет",
+            "Украденный предмет", "Stolen Item",
             "Предмет был украден у торговцев или жителей. Законные торговцы откажутся его покупать без специальных навыков сбыта.",
             "Stolen property mark. Lawful merchants refuse to buy stolen goods unless player possesses underground fencing perks.",
             "Предметы (статус владения)", "Items (Ownership Status)",
             "Воровство из чужих магазинов", "Stealing from NPC Shops"
         ),
+        ["Украдено"] = (
+            "Украденный предмет", "Stolen Item",
+            "Предмет был украден у торговцев или жителей. Законные торговцы откажутся его покупать без специальных навыков сбыта.",
+            "Stolen property mark. Lawful merchants refuse to buy stolen goods unless player possesses underground fencing perks.",
+            "Предметы (статус владения)", "Items (Ownership Status)",
+            "Воровство из чужих магазинов", "Stealing from NPC Shops"
+        ),
+        ["Sharpened"] = (
+            "Заточенный", "Sharpened",
+            "Оружие идеально заточено на точильном камне. Дает бонус к прямому физическому урону.",
+            "Weapon honed on a sharpening stone. Grants bonus to base direct physical attack damage.",
+            "Холодное оружие", "Melee Weapons",
+            "Точильный станок / Камни заточки", "Sharpening Wheel / Whetstones"
+        ),
+        ["Invulnerable"] = (
+            "Неуязвимость", "Invulnerable",
+            "Полный иммунитет к любому входящему урону на время действия эффекта.",
+            "Complete immunity to all incoming forms of damage for effect duration.",
+            "Персонаж и объекты", "Player Character & Objects",
+            "Особые эффекты / Зелья", "Special Effects / Potions"
+        ),
+        ["EarningBonus"] = (
+            "Бонус к заработку", "Earning Bonus",
+            "Увеличивает количество монет и выручки от продаж в магазине.",
+            "Increases shop revenue and coins received from customer sales.",
+            "Магазин и торговля", "Shop & Economy",
+            "Улучшения магазина / Перки", "Shop Upgrades / Economy Perks"
+        ),
+        ["ItemSize"] = (
+            "Размер предмета", "Item Size",
+            "Определяет габариты и вес предмета при транспортировке и размещении на витринах магазина.",
+            "Determines spatial footprint and transport weight when placing items on shop display counters.",
+            "Все предметы", "All Items",
+            "Физические свойства предмета", "Item Physics Property"
+        ),
+        ["CleaningPower"] = (
+            "Сила очистки", "Cleaning Power",
+            "Эффективность удаления грязи и пятен с пола, витрин и мебели шваброй или моющими средствами.",
+            "Effectiveness at scrubbing mud, dirt, and spills from store floors and display counters.",
+            "Инструменты уборки", "Cleaning Tools & Mops",
+            "Инструменты клининга", "Cleaning Equipment"
+        ),
+        ["Slots"] = (
+            "Слоты", "Slots",
+            "Количество доступных ячеек для хранения предметов в контейнере или витрине.",
+            "Number of storage or display item slots available on this fixture.",
+            "Контейнеры и витрины", "Containers & Displays",
+            "Свойства мебели", "Furniture Property"
+        ),
+        ["Damage"] = (
+            "Урон", "Damage",
+            "Базовый урон оружия или инструмента при нанесении прямых ударов по врагам и объектам.",
+            "Base damage inflicted by weapon or tool upon landing direct strikes against targets.",
+            "Оружие и инструменты", "Weapons & Tools",
+            "Характеристики оружия / Модификаторы", "Weapon Stats / Modifiers"
+        ),
+        ["Урон"] = (
+            "Урон", "Damage",
+            "Базовый урон оружия или инструмента при нанесении прямых ударов по врагам и объектам.",
+            "Base damage inflicted by weapon or tool upon landing direct strikes against targets.",
+            "Оружие и инструменты", "Weapons & Tools",
+            "Характеристики оружия / Модификаторы", "Weapon Stats / Modifiers"
+        )
     };
 
-    private static string CleanAttributeName(string raw)
+    internal static string CleanAttributeName(string raw)
     {
         if (string.IsNullOrEmpty(raw)) return "";
-        string s = raw;
+        string s = raw.Trim(':', ' ');
         if (s.StartsWith("HR", StringComparison.OrdinalIgnoreCase) && s.Length > 2 && char.IsUpper(s[2]))
             s = s.Substring(2);
         if (s.EndsWith("Attribute", StringComparison.OrdinalIgnoreCase) && s.Length > 9)
@@ -840,7 +1065,7 @@ internal static class JeiCatalog
             }
             sb.Append(s[i]);
         }
-        return sb.ToString().Trim();
+        return sb.ToString().Trim(':', ' ');
     }
 
     private static readonly Dictionary<string, string> _termTranslations = new(StringComparer.OrdinalIgnoreCase)
@@ -854,6 +1079,7 @@ internal static class JeiCatalog
         ["Electricity"] = "Электричество",
         ["Bleed"] = "Кровотечение",
         ["Bleeding"] = "Кровотечение",
+        ["Bloody"] = "Кровавый",
         ["Breaching"] = "Пробивающий",
         ["Armored"] = "Бронированный",
         ["Armor Piercing"] = "Бронебойность",
@@ -899,13 +1125,78 @@ internal static class JeiCatalog
         ["Shelled"] = "Панцирный",
         ["Special Delivery"] = "Особая доставка",
         ["Quickfire"] = "Скорострельность",
-        ["Quiet Wading"] = "Бесшумное движение"
+        ["Quiet Wading"] = "Бесшумное движение",
+        ["Item Size"] = "Размер предмета",
+        ["Cleaning Power"] = "Сила очистки",
+        ["Slots"] = "Слоты",
+        ["Invulnerable"] = "Неуязвимость",
+        ["Earning Bonus"] = "Бонус к заработку",
+        ["Attack Speed"] = "Скорость атаки",
+        ["Add Happiness"] = "Прирост настроения",
+        ["Reduce Happiness"] = "Снижение настроения",
+        ["Display Sale To Customer"] = "Продажа с витрины",
+        ["Open Close Store"] = "Открытие/Закрытие магазина",
+        ["Can craft other items"] = "Создание других предметов",
+        ["Skips the bartering minigame"] = "Пропуск мини-игры торга",
+        ["The required power for this item"] = "Требуемая энергия",
+        ["The I D of the power grid this connects to"] = "ID электросети",
+        ["Pristine"] = "Идеальное состояние",
+        ["Haggling"] = "Мастерство торга",
+        ["Radiation"] = "Радиация",
+        ["Radioactive"] = "Радиоактивный",
+        ["Wet"] = "Намокание",
+        ["Hunger"] = "Голод",
+        ["Thirst"] = "Жажда",
+        ["Stolen"] = "Украдено"
+    };
+
+    private static readonly Dictionary<string, string> _ruToEnTranslations = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Идеальное состояние"] = "Pristine",
+        ["Мастерство торга"] = "Barter Mastery",
+        ["Благословение Беллсталкера"] = "Bellstalker's Blessing",
+        ["Черта происхождения"] = "Origin Trait",
+        ["Эффективность медицины"] = "Medicine Potency",
+        ["Грязь"] = "Covered in Dirt",
+        ["Смертельное обморожение"] = "Lethal Hypothermia",
+        ["Обморожение"] = "Frostbite",
+        ["Радиация"] = "Radiation",
+        ["Радиоактивный"] = "Radioactive",
+        ["Голод"] = "Starvation",
+        ["Жажда"] = "Dehydration",
+        ["Намокание"] = "Soaked / Wet",
+        ["Охлаждение"] = "Chilled",
+        ["Кровотечение"] = "Bleeding",
+        ["Кровавый"] = "Bleeding",
+        ["Стек кровотечения"] = "Bleed Buildup",
+        ["Накопление горения"] = "Burn Buildup",
+        ["Украдено"] = "Stolen Item",
+        ["Украденный предмет"] = "Stolen Item",
+        ["Украденный"] = "Stolen Item",
+        ["Заточенный"] = "Sharpened",
+        ["Неуязвимость"] = "Invulnerable",
+        ["Бонус к заработку"] = "Earning Bonus",
+        ["Размер предмета"] = "Item Size",
+        ["Сила очистки"] = "Cleaning Power",
+        ["Слоты"] = "Slots",
+        ["Урон"] = "Damage",
+        ["Защита"] = "Defense",
+        ["Атака"] = "Attack",
+        ["Здоровье"] = "Health",
+        ["Выносливость"] = "Stamina",
+        ["Скорость"] = "Speed",
+        ["Скорость бега"] = "Movement Speed",
+        ["Скорость атаки"] = "Attack Speed",
+        ["Шипы"] = "Thorns",
+        ["Яд"] = "Poison",
+        ["Шок"] = "Shock",
+        ["Огонь"] = "Fire"
     };
 
     private static string TranslateAffixTitle(string englishName)
     {
         if (string.IsNullOrEmpty(englishName)) return "";
-        string res = englishName.Trim();
+        string res = englishName.Trim(':', ' ');
         foreach (var pair in _termTranslations)
         {
             if (res.IndexOf(pair.Key, StringComparison.OrdinalIgnoreCase) >= 0)
@@ -913,7 +1204,87 @@ internal static class JeiCatalog
                 res = System.Text.RegularExpressions.Regex.Replace(res, "\\b" + System.Text.RegularExpressions.Regex.Escape(pair.Key) + "\\b", pair.Value, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
             }
         }
-        return res;
+        return res.Trim(':', ' ');
+    }
+
+    private static void ResolveAttributeTitles(JeiAttributeEntry entry, string rawStringId, string gameTitle, string locTitle)
+    {
+        string sId = rawStringId ?? "";
+        string sTitle = gameTitle ?? "";
+        string sLoc = locTitle ?? "";
+
+        // 1. English candidate from StringID
+        string cleanFromId = CleanAttributeName(sId);
+        if (string.IsNullOrEmpty(cleanFromId) && entry.ID > 0)
+            cleanFromId = "#" + entry.ID;
+
+        // 2. Candidate EN: prioritize non-Cyrillic gameTitle, fallback to cleanFromId
+        string candidateEn = "";
+        if (!string.IsNullOrEmpty(sTitle) && !HasCyrillic(sTitle))
+            candidateEn = CleanAttributeName(sTitle);
+        else if (!string.IsNullOrEmpty(cleanFromId) && !HasCyrillic(cleanFromId))
+            candidateEn = cleanFromId;
+        else
+            candidateEn = CleanAttributeName(sTitle);
+
+        candidateEn = candidateEn.Trim(':', ' ');
+
+        // 3. Candidate RU: prioritize Cyrillic locTitle, then Cyrillic gameTitle, fallback to translated candidateEn
+        string candidateRu = "";
+        if (!string.IsNullOrEmpty(sLoc) && HasCyrillic(sLoc))
+            candidateRu = sLoc.Trim(':', ' ');
+        else if (!string.IsNullOrEmpty(sTitle) && HasCyrillic(sTitle))
+            candidateRu = sTitle.Trim(':', ' ');
+        else
+            candidateRu = TranslateAffixTitle(candidateEn).Trim(':', ' ');
+
+        entry.TitleEn = candidateEn;
+        entry.TitleRu = candidateRu;
+
+        // 4. Match against unique attribute knowledge
+        string searchKey = $"{sId} {cleanFromId} {sTitle} {sLoc} {candidateEn} {candidateRu}".Trim();
+        foreach (var kv in _uniqueAttributeKnowledge)
+        {
+            if (searchKey.IndexOf(kv.Key, StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                var info = kv.Value;
+                entry.TitleRu = info.titleRu.Trim(':', ' ');
+                entry.TitleEn = info.titleEn.Trim(':', ' ');
+                if (!string.IsNullOrEmpty(info.descRu)) entry.DescriptionRu = info.descRu;
+                if (!string.IsNullOrEmpty(info.descEn)) entry.DescriptionEn = info.descEn;
+                if (!string.IsNullOrEmpty(info.appliesRu)) entry.AppliesToRu = info.appliesRu;
+                if (!string.IsNullOrEmpty(info.appliesEn)) entry.AppliesToEn = info.appliesEn;
+                if (!string.IsNullOrEmpty(info.sourceRu)) entry.SourceNameRu = info.sourceRu;
+                if (!string.IsNullOrEmpty(info.sourceEn)) entry.SourceNameEn = info.sourceEn;
+                break;
+            }
+        }
+
+        // 5. Fail-safe: TitleEn MUST NOT have Cyrillic letters
+        if (HasCyrillic(entry.TitleEn))
+        {
+            foreach (var kv in _ruToEnTranslations)
+            {
+                if (entry.TitleEn.IndexOf(kv.Key, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    entry.TitleEn = kv.Value;
+                    break;
+                }
+            }
+        }
+        if (HasCyrillic(entry.TitleEn))
+        {
+            if (!string.IsNullOrEmpty(cleanFromId) && !HasCyrillic(cleanFromId))
+                entry.TitleEn = cleanFromId;
+            else if (!string.IsNullOrEmpty(entry.StringID) && !HasCyrillic(entry.StringID))
+                entry.TitleEn = CleanAttributeName(entry.StringID);
+            else
+                entry.TitleEn = "Attribute " + entry.ID;
+        }
+
+        // 6. Guarantee no stray colons or spaces
+        entry.TitleEn = entry.TitleEn?.Trim(':', ' ') ?? "";
+        entry.TitleRu = entry.TitleRu?.Trim(':', ' ') ?? "";
     }
 
     private static void ScanAttributeDatabase()
@@ -958,14 +1329,10 @@ internal static class JeiCatalog
                         TitleColor = Color.white
                     };
 
-                    // Display Name
+                    // Display Name & Titles
                     string dispName = null;
                     try { dispName = HRAffixRegistry.GetDisplayNameFallback(def); } catch { }
-                    if (string.IsNullOrEmpty(dispName)) dispName = CleanAttributeName(def.StringID);
-                    if (string.IsNullOrEmpty(dispName)) dispName = "#" + affixId;
-
-                    entry.TitleEn = dispName;
-                    entry.TitleRu = TranslateAffixTitle(dispName);
+                    ResolveAttributeTitles(entry, def.StringID, dispName, null);
 
                     // Min Rarity
                     if ((int)def.MinimumRarity > 0)
@@ -973,7 +1340,10 @@ internal static class JeiCatalog
 
                     // Source
                     if (!string.IsNullOrEmpty(def.LinkedAttributeSource))
-                        entry.SourceName = def.LinkedAttributeSource;
+                    {
+                        entry.SourceNameEn = def.LinkedAttributeSource;
+                        entry.SourceNameRu = def.LinkedAttributeSource;
+                    }
 
                     // Applies to
                     switch (def.ItemType)
@@ -1042,16 +1412,19 @@ internal static class JeiCatalog
                         entry.ValueRangeText = "";
                     }
 
-                    // Description
-                    if (!string.IsNullOrEmpty(entry.ValueRangeText))
+                    // Description (if not already set by unique knowledge)
+                    if (string.IsNullOrEmpty(entry.DescriptionEn))
                     {
-                        entry.DescriptionEn = $"{entry.ValueRangeText}% {entry.TitleEn}";
-                        entry.DescriptionRu = $"{entry.ValueRangeText}% {entry.TitleRu}";
-                    }
-                    else
-                    {
-                        entry.DescriptionEn = entry.TitleEn;
-                        entry.DescriptionRu = entry.TitleRu;
+                        if (!string.IsNullOrEmpty(entry.ValueRangeText))
+                        {
+                            entry.DescriptionEn = $"{entry.ValueRangeText}% {entry.TitleEn}";
+                            entry.DescriptionRu = $"{entry.ValueRangeText}% {entry.TitleRu}";
+                        }
+                        else
+                        {
+                            entry.DescriptionEn = entry.TitleEn;
+                            entry.DescriptionRu = entry.TitleRu;
+                        }
                     }
 
                     // Category
@@ -1099,27 +1472,29 @@ internal static class JeiCatalog
                         if (ai.TitleColor.a > 0.05f) existing.TitleColor = ai.TitleColor;
 
                         // Check localized title/description from game
+                        string locT = null;
+                        Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStringArray locD = null;
                         try
                         {
-                            if (attrDb.GetLocalizedTitleDesSplit(ai, out string locT, out var locD) && !string.IsNullOrEmpty(locT))
-                            {
-                                existing.TitleRu = locT;
-                                if (locD != null && locD.Length > 0)
-                                {
-                                    string fullLoc = string.Join(" ", locD);
-                                    if (!string.IsNullOrEmpty(existing.ValueRangeText))
-                                        fullLoc = fullLoc.Replace("{0}", existing.ValueRangeText);
-                                    else
-                                        fullLoc = fullLoc.Replace("{0}%", "").Replace("{0}", "").Trim();
-                                    if (!string.IsNullOrEmpty(fullLoc)) existing.DescriptionRu = fullLoc;
-                                }
-                            }
+                            attrDb.GetLocalizedTitleDesSplit(ai, out locT, out locD);
                         }
                         catch { }
 
+                        ResolveAttributeTitles(existing, ai.StringID ?? existing.StringID, ai.Title, locT);
+
+                        if (locD != null && locD.Length > 0 && string.IsNullOrEmpty(existing.DescriptionRu))
+                        {
+                            string fullLoc = string.Join(" ", locD);
+                            if (!string.IsNullOrEmpty(existing.ValueRangeText))
+                                fullLoc = fullLoc.Replace("{0}", existing.ValueRangeText);
+                            else
+                                fullLoc = fullLoc.Replace("{0}%", "").Replace("{0}", "").Trim();
+                            if (!string.IsNullOrEmpty(fullLoc)) existing.DescriptionRu = fullLoc;
+                        }
+
                         // Check description format
                         string dFormat = ai.DescriptionFormat;
-                        if (!string.IsNullOrEmpty(dFormat))
+                        if (!string.IsNullOrEmpty(dFormat) && string.IsNullOrEmpty(existing.DescriptionEn))
                         {
                             if (dFormat.Contains("{0}"))
                             {
@@ -1137,13 +1512,10 @@ internal static class JeiCatalog
                     }
 
                     // This is a unique/legacy attribute!
-                    string cleanName = CleanAttributeName(ai.Title ?? ai.StringID ?? ("Attribute" + resolvedId));
                     var entry = new JeiAttributeEntry
                     {
                         ID = resolvedId,
                         StringID = ai.StringID,
-                        TitleEn = cleanName,
-                        TitleRu = cleanName,
                         TitleColor = ai.TitleColor.a > 0.05f ? ai.TitleColor : Color.white,
                         Icon = ai.Icon,
                         DurationTextEn = "Permanent (passive)",
@@ -1151,54 +1523,47 @@ internal static class JeiCatalog
                         ValueRangeText = ""
                     };
 
-                    // Check our comprehensive knowledge dictionary for unique mechanics!
-                    string searchKey = (ai.StringID ?? "") + " " + (ai.Title ?? "");
-                    bool matchedKnowledge = false;
-                    foreach (var kv in _uniqueAttributeKnowledge)
+                    string locTitle = null;
+                    Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStringArray locDescs = null;
+                    try { attrDb.GetLocalizedTitleDesSplit(ai, out locTitle, out locDescs); } catch { }
+
+                    ResolveAttributeTitles(entry, ai.StringID, ai.Title, locTitle);
+
+                    // Inspect prefab for numbers/sources
+                    HRAttribute prefabAttr = null;
+                    if (ai.AttributePrefab != null)
                     {
-                        if (searchKey.IndexOf(kv.Key, StringComparison.OrdinalIgnoreCase) >= 0 || cleanName.IndexOf(kv.Key, StringComparison.OrdinalIgnoreCase) >= 0)
+                        try { prefabAttr = ai.AttributePrefab.GetComponent<HRAttribute>(); } catch { }
+                    }
+
+                    if (prefabAttr != null)
+                    {
+                        if (prefabAttr.Value != 0)
                         {
-                            var info = kv.Value;
-                            entry.TitleRu = info.titleRu;
-                            entry.DescriptionRu = info.descRu;
-                            entry.DescriptionEn = info.descEn;
-                            entry.AppliesToRu = info.appliesRu;
-                            entry.AppliesToEn = info.appliesEn;
-                            entry.SourceName = JeiLoc.IsRu ? info.sourceRu : info.sourceEn;
-                            matchedKnowledge = true;
-                            break;
+                            entry.MinValue = prefabAttr.Value;
+                            entry.ValueRangeText = (prefabAttr.Value > 0 ? "+" : "") + $"{prefabAttr.Value:0.#}";
+                        }
+                        if (prefabAttr.Duration > 0)
+                        {
+                            entry.Duration = prefabAttr.Duration;
+                            entry.DurationTextEn = $"{prefabAttr.Duration:0.#}s";
+                            entry.DurationTextRu = $"{prefabAttr.Duration:0.#} сек.";
+                        }
+                        if (!string.IsNullOrEmpty(prefabAttr.Source))
+                        {
+                            entry.SourceNameEn = prefabAttr.Source;
+                            entry.SourceNameRu = prefabAttr.Source;
+                        }
+                        if (prefabAttr.DisplayTriggerTypes != null && prefabAttr.DisplayTriggerTypes.Length > 0)
+                        {
+                            entry.TriggerTextEn = string.Join(", ", prefabAttr.DisplayTriggerTypes);
+                            entry.TriggerTextRu = string.Join(", ", prefabAttr.DisplayTriggerTypes);
                         }
                     }
 
-                    if (!matchedKnowledge)
+                    // Formatted description if not already set by unique knowledge
+                    if (string.IsNullOrEmpty(entry.DescriptionEn))
                     {
-                        // Inspect prefab for numbers/sources
-                        HRAttribute prefabAttr = null;
-                        if (ai.AttributePrefab != null)
-                        {
-                            try { prefabAttr = ai.AttributePrefab.GetComponent<HRAttribute>(); } catch { }
-                        }
-
-                        if (prefabAttr != null)
-                        {
-                            if (prefabAttr.Value != 0)
-                            {
-                                entry.MinValue = prefabAttr.Value;
-                                entry.ValueRangeText = (prefabAttr.Value > 0 ? "+" : "") + $"{prefabAttr.Value:0.#}";
-                            }
-                            if (prefabAttr.Duration > 0)
-                            {
-                                entry.Duration = prefabAttr.Duration;
-                                entry.DurationTextEn = $"{prefabAttr.Duration:0.#}s";
-                                entry.DurationTextRu = $"{prefabAttr.Duration:0.#} сек.";
-                            }
-                            if (!string.IsNullOrEmpty(prefabAttr.Source))
-                                entry.SourceName = prefabAttr.Source;
-                            if (prefabAttr.DisplayTriggerTypes != null && prefabAttr.DisplayTriggerTypes.Length > 0)
-                                entry.TriggerTextEn = string.Join(", ", prefabAttr.DisplayTriggerTypes);
-                        }
-
-                        // Formatted description
                         string descF = ai.DescriptionFormat;
                         if (!string.IsNullOrEmpty(descF))
                         {
@@ -1218,24 +1583,20 @@ internal static class JeiCatalog
                         {
                             entry.DescriptionEn = entry.TitleEn;
                         }
+                    }
 
-                        try
-                        {
-                            if (attrDb.GetLocalizedTitleDesSplit(ai, out string locT, out var locD) && !string.IsNullOrEmpty(locT))
-                            {
-                                entry.TitleRu = locT;
-                                if (locD != null && locD.Length > 0)
-                                    entry.DescriptionRu = string.Join(" ", locD).Replace("{0}%", "").Replace("{0}", "").Trim();
-                            }
-                        }
-                        catch { }
+                    if (string.IsNullOrEmpty(entry.DescriptionRu))
+                    {
+                        if (locDescs != null && locDescs.Length > 0)
+                            entry.DescriptionRu = string.Join(" ", locDescs).Replace("{0}%", "").Replace("{0}", "").Trim();
+                        else
+                            entry.DescriptionRu = entry.DescriptionEn;
+                    }
 
-                        if (string.IsNullOrEmpty(entry.DescriptionRu)) entry.DescriptionRu = entry.DescriptionEn;
-                        if (string.IsNullOrEmpty(entry.AppliesToEn))
-                        {
-                            entry.AppliesToEn = "Player Character & Equipment";
-                            entry.AppliesToRu = "Персонаж и экипировка";
-                        }
+                    if (string.IsNullOrEmpty(entry.AppliesToEn))
+                    {
+                        entry.AppliesToEn = "Player Character & Equipment";
+                        entry.AppliesToRu = "Персонаж и экипировка";
                     }
 
                     // Category
