@@ -101,9 +101,9 @@
 
   <!-- Auto-copy the built plugin into the game's BepInEx/plugins folder -->
   <Target Name="CopyToPlugins" AfterTargets="Build">
-    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PluginsDir)" Condition="Exists('$(TargetPath)')" />
-    <Copy SourceFiles="$(TargetDir)$(TargetName).pdb" DestinationFolder="$(PluginsDir)" Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
-    <Message Importance="high" Text="[Saleblazers.JEI] Copied plugin to $(PluginsDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PluginsDir)" Condition="Exists('$(TargetPath)')" ContinueOnError="true" Retries="1" RetryDelayMilliseconds="100" />
+    <Copy SourceFiles="$(TargetDir)$(TargetName).pdb" DestinationFolder="$(PluginsDir)" Condition="Exists('$(TargetDir)$(TargetName).pdb')" ContinueOnError="true" Retries="1" RetryDelayMilliseconds="100" />
+    <Message Importance="high" Text="[Saleblazers.JEI] Attempted plugin copy to $(PluginsDir)" />
   </Target>
 
 </Project>

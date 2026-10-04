@@ -92,8 +92,8 @@ internal static class JeiLoc
         "<color=#9AA4B8>Select an attribute from the list on the left</color>");
 
     public static string SelectAttrHint => Pick(
-        "Нажмите на атрибут, чтобы увидеть его точные параметры, описание эффекта и список связанных предметов и блюд.",
-        "Click an attribute to view its detailed effect formula, perk stats, and associated meals or items.");
+        "Нажмите на атрибут, чтобы увидеть точные числовые диапазоны, условия срабатывания, источники и связанные блюда.",
+        "Click an attribute to view its value ranges, trigger mechanics, granting sources, and associated meals.");
 
     public static string RecipesDefaultHeader => Pick("--- РЕЦЕПТЫ ---", "--- RECIPES ---");
     public static string AttrDefaultHeader => Pick("--- ЭФФЕКТ АТРИБУТА ---", "--- ATTRIBUTE EFFECT ---");
@@ -136,8 +136,22 @@ internal static class JeiLoc
     public static string AttrCategoryLabel => Pick("Категория:", "Category:");
     public static string AttrInternalIdLabel => Pick("ID в коде:", "Internal ID:");
     public static string AttrEffectHeader => Pick("ОПИСАНИЕ ЭФФЕКТА", "EFFECT DESCRIPTION");
-    public static string AttrFoodHeader => Pick("ДАЁТСЯ БЛЮДАМИ:", "GRANTED BY MEALS:");
+    public static string AttrMechanicsHeader => Pick("МЕХАНИКА И ИСТОЧНИКИ", "MECHANICS & SOURCES");
+    public static string AttrFoodHeader => Pick("СВЯЗАННЫЕ БЛЮДА И ИНГРЕДИЕНТЫ", "ASSOCIATED MEALS & INGREDIENTS");
+    public static string AttrAppliesToLabel => Pick("На что действует:", "Applies to:");
+    public static string AttrTriggerLabel => Pick("Срабатывание:", "Trigger:");
+    public static string AttrDurationLabel => Pick("Длительность:", "Duration:");
+    public static string AttrRangeLabel => Pick("Диапазон:", "Value Range:");
+    public static string AttrRarityLabel => Pick("Редкость:", "Min Rarity:");
+    public static string AttrSourceLabel => Pick("Источник / НПЦ:", "Source / NPC:");
+    public static string AttrRequirementsLabel => Pick("Требования:", "Requirements:");
+    public static string AttrPassive => Pick("Постоянно (пассивный)", "Permanent (passive)");
     public static string AttrNoDescription => Pick("Пассивный модификатор или особый статус игры.", "Passive modifier or special in-game status.");
+    public static string AttrIngredientBadge => Pick("[Ингредиент]", "[Ingredient]");
+    public static string AttrMealBadge => Pick("[Блюдо]", "[Meal]");
+    public static string AttrNoFoodLinked => Pick(
+        "Этот атрибут не привязан к блюдам кулинарии.\nПолучается через зачарования оружия/брони, трофеи с боссов или торговцев.",
+        "This attribute is not linked to cooked meals.\nObtained via weapon/armor affixes, boss drops, or merchant stock.");
 
     // --- Research / Unlock ---
     public static string ResearchNotRequired => Pick(

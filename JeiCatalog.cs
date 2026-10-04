@@ -77,7 +77,26 @@ public class JeiAttributeEntry
     public string DescriptionEn;
     public Sprite Icon;
     public string Category = "Utility"; // Combat, Defense, Food, Utility
+
+    // Value ranges & mechanics
+    public float MinValue;
+    public float MaxValue;
+    public string ValueRangeText;
+    public float Duration;
+    public string DurationTextRu;
+    public string DurationTextEn;
+    public string TriggerTextRu;
+    public string TriggerTextEn;
+    public string AppliesToRu;
+    public string AppliesToEn;
+    public string MinRarity;
+    public string SourceName;
+    public string RequirementsText;
+
+    // Associated items: meals, ingredients, weapons/gear
     public List<int> AssociatedFoodItemIDs = new();
+    public List<int> AssociatedIngredientItemIDs = new();
+    public List<int> AssociatedGearItemIDs = new();
 
     public string Title
     {
@@ -114,6 +133,18 @@ public class JeiAttributeEntry
             return JeiLoc.AttrNoDescription;
         }
     }
+
+    public string TriggerText => JeiLoc.IsRu
+        ? (!string.IsNullOrEmpty(TriggerTextRu) ? TriggerTextRu : TriggerTextEn)
+        : (!string.IsNullOrEmpty(TriggerTextEn) ? TriggerTextEn : TriggerTextRu);
+
+    public string AppliesTo => JeiLoc.IsRu
+        ? (!string.IsNullOrEmpty(AppliesToRu) ? AppliesToRu : AppliesToEn)
+        : (!string.IsNullOrEmpty(AppliesToEn) ? AppliesToEn : AppliesToRu);
+
+    public string DurationText => JeiLoc.IsRu
+        ? (!string.IsNullOrEmpty(DurationTextRu) ? DurationTextRu : DurationTextEn)
+        : (!string.IsNullOrEmpty(DurationTextEn) ? DurationTextEn : DurationTextRu);
 }
 
 public class JeiItemEntry
@@ -452,11 +483,11 @@ internal static class JeiCatalog
         // 4. Scan Research / Skill Trees
         ScanSkillTrees(craftingDb?.ResearchBenchTreeSO);
 
-        // 5. Scan Food & Culinary Recipes from HRFoodDatabase
-        ScanFoodDatabase();
-
-        // 6. Scan Item Attributes & Affixes from HRAttributeDatabase
+        // 5. Scan Item Attributes & Affixes from HRAttributeDatabase & HRAffixRegistry
         ScanAttributeDatabase();
+
+        // 6. Scan Food & Culinary Recipes from HRFoodDatabase
+        ScanFoodDatabase();
 
         _scanned = true;
         _log?.LogInfo($"[JEI] Catalog: {_items.Count} items, {_attributes.Count} attributes, R/U & Culinary indexes built.");
@@ -477,6 +508,19 @@ internal static class JeiCatalog
                     int itemId = kv.Key;
                     if (_items.TryGetValue(itemId, out var entry))
                         entry.IsFood = true;
+
+                    // Also link ingredient's AffixID to attribute entries
+                    var ingData = kv.Value;
+                    if (ingData != null && ingData.AffixID > 0)
+                    {
+                        if (_attributesById.TryGetValue(ingData.AffixID, out var attrEntry))
+                        {
+                            if (!attrEntry.AssociatedIngredientItemIDs.Contains(itemId))
+                                attrEntry.AssociatedIngredientItemIDs.Add(itemId);
+                            if (!attrEntry.AssociatedFoodItemIDs.Contains(itemId))
+                                attrEntry.AssociatedFoodItemIDs.Add(itemId);
+                        }
+                    }
                 }
             }
 
@@ -559,8 +603,17 @@ internal static class JeiCatalog
                     {
                         if (aff == null) continue;
                         int affId = aff.AffixID;
-                        if (affId > 0 && !r.FoodAffixIDs.Contains(affId))
-                            r.FoodAffixIDs.Add(affId);
+                        if (affId > 0)
+                        {
+                            if (!r.FoodAffixIDs.Contains(affId))
+                                r.FoodAffixIDs.Add(affId);
+
+                            if (_attributesById.TryGetValue(affId, out var attrEntry))
+                            {
+                                if (!attrEntry.AssociatedFoodItemIDs.Contains(mealItemId))
+                                    attrEntry.AssociatedFoodItemIDs.Add(mealItemId);
+                            }
+                        }
                     }
                 }
 
@@ -579,7 +632,6 @@ internal static class JeiCatalog
                         }
                         else
                         {
-                            // Fallback lookup in items by name
                             foreach (var it in _items.Values)
                             {
                                 if (it.FallbackName != null && it.FallbackName.IndexOf(ing.NameKey, StringComparison.OrdinalIgnoreCase) >= 0)
@@ -598,6 +650,20 @@ internal static class JeiCatalog
                                 ingItemEntry.IsFood = true;
                                 if (!ingItemEntry.Usages.Contains(r))
                                     ingItemEntry.Usages.Add(r);
+
+                                // If ingredient grants an affix, link this cooked meal to that affix as well!
+                                if (HRFoodDatabase.IngredientsByItemID != null &&
+                                    HRFoodDatabase.IngredientsByItemID.TryGetValue(ingItemId, out var ingData) &&
+                                    ingData.AffixID > 0)
+                                {
+                                    if (_attributesById.TryGetValue(ingData.AffixID, out var attrEntry))
+                                    {
+                                        if (!attrEntry.AssociatedFoodItemIDs.Contains(mealItemId))
+                                            attrEntry.AssociatedFoodItemIDs.Add(mealItemId);
+                                        if (!r.FoodAffixIDs.Contains(ingData.AffixID))
+                                            r.FoodAffixIDs.Add(ingData.AffixID);
+                                    }
+                                }
                             }
                         }
                     }
@@ -633,6 +699,9 @@ internal static class JeiCatalog
                 if (dbs != null && dbs.Length > 0) attrDb = dbs[0];
             }
 
+            // 1. Initialize HRAffixRegistry to access exact numeric ranges and mechanics
+            try { HRAffixRegistry.EnsureInitialized(); } catch (Exception) { }
+
             if (attrDb?.AttributeInfos == null)
             {
                 _log?.LogWarning("[JEI] AttributeDB or AttributeInfos not found.");
@@ -641,32 +710,135 @@ internal static class JeiCatalog
 
             _log?.LogInfo($"[JEI] Scanning {attrDb.AttributeInfos.Length} attributes from MasterAttributeDB...");
 
-            foreach (var ai in attrDb.AttributeInfos)
+            for (int i = 0; i < attrDb.AttributeInfos.Length; i++)
             {
-                if (ai == null || ai.ID <= 0) continue;
+                var ai = attrDb.AttributeInfos[i];
+                if (ai == null) continue;
+
+                int resolvedId = ai.ID > 0 ? ai.ID : (i + 1);
 
                 var entry = new JeiAttributeEntry
                 {
-                    ID = ai.ID,
+                    ID = resolvedId,
                     StringID = ai.StringID,
                     TitleEn = ai.Title,
                     TitleColor = ai.TitleColor.a > 0.05f ? ai.TitleColor : Color.white,
                     Icon = ai.Icon
                 };
 
+                // Find matching definition
+                HRAffixDefinition def = null;
+                try
+                {
+                    HRAffixRegistry.TryGetDefinition(resolvedId, out def);
+                }
+                catch (Exception) { }
+
+                // Inspect prefab component for base values and triggers
+                HRAttribute prefabAttr = null;
+                if (ai.AttributePrefab != null)
+                {
+                    try { prefabAttr = ai.AttributePrefab.GetComponent<HRAttribute>(); }
+                    catch (Exception) { }
+                }
+
+                if (prefabAttr != null)
+                {
+                    if (prefabAttr.Value != 0) entry.MinValue = prefabAttr.Value;
+                    if (prefabAttr.Duration > 0) entry.Duration = prefabAttr.Duration;
+                    if (!string.IsNullOrEmpty(prefabAttr.Source)) entry.SourceName = prefabAttr.Source;
+                    if (prefabAttr.DisplayTriggerTypes != null && prefabAttr.DisplayTriggerTypes.Length > 0)
+                    {
+                        entry.TriggerTextEn = string.Join(", ", prefabAttr.DisplayTriggerTypes);
+                    }
+                }
+
+                // Apply definition ranges and mechanics
+                if (def != null)
+                {
+                    if (def.MinValue != 0) entry.MinValue = def.MinValue;
+                    if (def.MaxValue != 0) entry.MaxValue = def.MaxValue;
+                    if (def.Duration > 0) entry.Duration = def.Duration;
+                    if (!string.IsNullOrEmpty(def.LinkedAttributeSource)) entry.SourceName = def.LinkedAttributeSource;
+                    if ((int)def.MinimumRarity > 0) entry.MinRarity = def.MinimumRarity.ToString();
+
+                    // Format ItemType / AppliesTo
+                    switch (def.ItemType)
+                    {
+                        case HRAffixItemType.Weapon:
+                            entry.AppliesToEn = "Weapons (Melee & Ranged)";
+                            entry.AppliesToRu = "Оружие (ближний и дальний бой)";
+                            break;
+                        case HRAffixItemType.Clothing:
+                            entry.AppliesToEn = "Armor & Clothing";
+                            entry.AppliesToRu = "Броня и экипировка";
+                            break;
+                        case HRAffixItemType.Food:
+                            entry.AppliesToEn = "Food Meals & Ingredients";
+                            entry.AppliesToRu = "Еда, блюда и ингредиенты";
+                            break;
+                        case HRAffixItemType.FishingRod:
+                            entry.AppliesToEn = "Fishing Rods";
+                            entry.AppliesToRu = "Удочки";
+                            break;
+                        case HRAffixItemType.CraftingStation:
+                            entry.AppliesToEn = "Crafting Workstations";
+                            entry.AppliesToRu = "Рабочие верстаки";
+                            break;
+                        default:
+                            entry.AppliesToEn = def.ItemType.ToString();
+                            entry.AppliesToRu = def.ItemType.ToString();
+                            break;
+                    }
+
+                    // Format Triggers
+                    entry.TriggerTextEn = def.Triggers.ToString();
+                    string trig = def.Triggers.ToString().ToLowerInvariant();
+                    if (trig.Contains("hit")) entry.TriggerTextRu = "При нанесении удара";
+                    else if (trig.Contains("damage")) entry.TriggerTextRu = "При получении урона";
+                    else if (trig.Contains("eat") || trig.Contains("consume")) entry.TriggerTextRu = "При употреблении в пищу";
+                    else if (trig.Contains("equip")) entry.TriggerTextRu = "При экипировке (пассивно)";
+                    else entry.TriggerTextRu = "Постоянный эффект";
+                }
+
+                // Format Duration Text
+                if (entry.Duration > 0)
+                {
+                    entry.DurationTextEn = $"{entry.Duration:0.#}s";
+                    entry.DurationTextRu = $"{entry.Duration:0.#} сек.";
+                }
+                else
+                {
+                    entry.DurationTextEn = "Permanent (passive)";
+                    entry.DurationTextRu = "Постоянно (пассивный)";
+                }
+
+                // Compute range string to replace {0}
+                string rangeStr = "";
+                if (entry.MinValue != 0 || entry.MaxValue != 0)
+                {
+                    if (entry.MaxValue == 0 || Mathf.Approximately(entry.MinValue, entry.MaxValue))
+                    {
+                        rangeStr = (entry.MinValue > 0 ? "+" : "") + $"{entry.MinValue:0.#}";
+                    }
+                    else
+                    {
+                        rangeStr = (entry.MinValue > 0 ? "+" : "") + $"{entry.MinValue:0.#} - {entry.MaxValue:0.#}";
+                    }
+                }
+                else
+                {
+                    rangeStr = JeiLoc.Pick("Зависит от качества", "Varies by quality");
+                }
+                entry.ValueRangeText = rangeStr;
+
                 // Formatted description in English
                 string descFormatEn = ai.DescriptionFormat;
                 if (!string.IsNullOrEmpty(descFormatEn))
                 {
-                    if (ai.DescriptionsVar != null && ai.DescriptionsVar.Length > 0)
+                    if (descFormatEn.Contains("{0}"))
                     {
-                        try
-                        {
-                            var args = new object[ai.DescriptionsVar.Length];
-                            for (int i = 0; i < ai.DescriptionsVar.Length; i++) args[i] = ai.DescriptionsVar[i];
-                            entry.DescriptionEn = string.Format(descFormatEn, args);
-                        }
-                        catch (Exception) { entry.DescriptionEn = descFormatEn; }
+                        entry.DescriptionEn = descFormatEn.Replace("{0}", rangeStr);
                     }
                     else
                     {
@@ -682,7 +854,10 @@ internal static class JeiCatalog
                         if (!string.IsNullOrEmpty(locTitle)) entry.TitleRu = locTitle;
                         if (locDescs != null && locDescs.Length > 0)
                         {
-                            entry.DescriptionRu = string.Join(" ", locDescs);
+                            string locCombined = string.Join(" ", locDescs);
+                            if (locCombined.Contains("{0}"))
+                                locCombined = locCombined.Replace("{0}", rangeStr);
+                            entry.DescriptionRu = locCombined;
                         }
                     }
                 }
@@ -690,6 +865,20 @@ internal static class JeiCatalog
 
                 if (string.IsNullOrEmpty(entry.TitleRu)) entry.TitleRu = entry.TitleEn;
                 if (string.IsNullOrEmpty(entry.DescriptionRu)) entry.DescriptionRu = entry.DescriptionEn;
+
+                // If description is still empty or literal "{0}%", provide meaningful context
+                if (string.IsNullOrEmpty(entry.DescriptionEn) || entry.DescriptionEn.Trim() == "{0}%")
+                {
+                    entry.DescriptionEn = !string.IsNullOrEmpty(entry.ValueRangeText)
+                        ? $"{entry.ValueRangeText}% {entry.TitleEn}"
+                        : entry.TitleEn;
+                }
+                if (string.IsNullOrEmpty(entry.DescriptionRu) || entry.DescriptionRu.Trim() == "{0}%")
+                {
+                    entry.DescriptionRu = !string.IsNullOrEmpty(entry.ValueRangeText)
+                        ? $"{entry.ValueRangeText}% {entry.TitleRu}"
+                        : entry.TitleRu;
+                }
 
                 // Determine category
                 string searchKey = ((entry.StringID ?? "") + " " + (entry.TitleEn ?? "") + " " + (entry.DescriptionEn ?? "")).ToLowerInvariant();
@@ -711,26 +900,7 @@ internal static class JeiCatalog
                 }
 
                 _attributes.Add(entry);
-                _attributesById[entry.ID] = entry;
-            }
-
-            // Link attributes to meals that grant them
-            foreach (var item in _items.Values)
-            {
-                foreach (var r in item.Recipes)
-                {
-                    if (r.IsCooking && r.FoodAffixIDs != null)
-                    {
-                        foreach (int affId in r.FoodAffixIDs)
-                        {
-                            if (_attributesById.TryGetValue(affId, out var attrEntry))
-                            {
-                                if (!attrEntry.AssociatedFoodItemIDs.Contains(item.ItemID))
-                                    attrEntry.AssociatedFoodItemIDs.Add(item.ItemID);
-                            }
-                        }
-                    }
-                }
+                _attributesById[resolvedId] = entry;
             }
 
             _attributes.Sort((a, b) => a.ID.CompareTo(b.ID));

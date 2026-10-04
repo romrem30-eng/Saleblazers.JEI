@@ -1117,6 +1117,7 @@ internal static class JeiUI
             msb.Append("<color=#8FD694><b>").Append(JeiLoc.DropsLabel).Append("</b></color> ").Append(string.Join(", ", drops)).AppendLine();
         }
         AppendUnlockSummary(msb, e.Unlock);
+        _detailMetaText.fontSize = 12;
         _detailMetaText.text = msb.ToString();
 
         if (e.Unlock != null && e.Unlock.RequiredItemID > 0 && JeiCatalog.Items.TryGetValue(e.Unlock.RequiredItemID, out var reqItem))
@@ -1214,10 +1215,34 @@ internal static class JeiUI
             hsb.Append(" <color=#7E889B>(").Append(a.StringID).Append(")</color>");
         hsb.AppendLine();
         hsb.Append("<color=#B0B8C8>").Append(JeiLoc.AttrCategoryLabel).Append("</color> <color=#6EC6F5>").Append(a.Category).Append("</color>");
+        if (!string.IsNullOrEmpty(a.MinRarity))
+            hsb.Append("  |  <color=#B0B8C8>").Append(JeiLoc.AttrRarityLabel).Append("</color> <color=#F5D76E>").Append(a.MinRarity).Append("</color>");
         _detailHeaderText.text = hsb.ToString();
 
-        // Meta block: Full effect description
-        _detailMetaText.text = $"<color=#8FD694><b>{JeiLoc.AttrEffectHeader}</b></color>\n<color=#FFFFFF>{a.Description}</color>";
+        // Meta block: Full effect description + numeric ranges + triggers + duration + sources
+        _detailMetaText.fontSize = 11;
+        var msb = new System.Text.StringBuilder();
+        msb.Append("<color=#8FD694><b>").Append(JeiLoc.AttrEffectHeader).Append(":</b></color> <color=#FFFFFF>").Append(a.Description).Append("</color>\n");
+        msb.Append("<color=#B0B8C8>").Append(JeiLoc.AttrRangeLabel).Append(" </color><color=#F5D76E>").Append(a.ValueRangeText).Append("</color>");
+        msb.Append("  |  <color=#B0B8C8>").Append(JeiLoc.AttrDurationLabel).Append(" </color><color=#F5D76E>").Append(a.DurationText).Append("</color>\n");
+
+        bool hasMechanics = false;
+        if (!string.IsNullOrEmpty(a.AppliesTo))
+        {
+            msb.Append("<color=#B0B8C8>").Append(JeiLoc.AttrAppliesToLabel).Append(" </color><color=#6EC6F5>").Append(a.AppliesTo).Append("</color>");
+            hasMechanics = true;
+        }
+        if (!string.IsNullOrEmpty(a.TriggerText))
+        {
+            if (hasMechanics) msb.Append("  |  ");
+            msb.Append("<color=#B0B8C8>").Append(JeiLoc.AttrTriggerLabel).Append(" </color><color=#FFAA55>").Append(a.TriggerText).Append("</color>");
+            hasMechanics = true;
+        }
+        if (!string.IsNullOrEmpty(a.SourceName))
+        {
+            msb.Append("\n<color=#B0B8C8>").Append(JeiLoc.AttrSourceLabel).Append(" </color><color=#E0E5EE>").Append(a.SourceName).Append("</color>");
+        }
+        _detailMetaText.text = msb.ToString();
 
         // List of associated meals / food dishes granting this attribute
         _recipeSectionTitle.text = $"{JeiLoc.AttrFoodHeader} ({a.AssociatedFoodItemIDs.Count})";
@@ -1226,9 +1251,9 @@ internal static class JeiUI
         {
             _recipePageText.text = "0/0";
             var emptyTxt = UiKit.MakeText(_recipeListContainer, "EmptyAttrFoodTxt",
-                "<color=#8892A6>" + (JeiLoc.IsRu ? "Этот атрибут получается через зачарования, снаряжение или особые события." : "This attribute is obtained through enchantments, gear, or special events.") + "</color>",
-                13, Color.white, TextAnchor.UpperLeft,
-                new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1), new Vector2(4, -6), new Vector2(380, 40), _font);
+                "<color=#8892A6>" + JeiLoc.AttrNoFoodLinked + "</color>",
+                12, Color.white, TextAnchor.UpperLeft,
+                new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1), new Vector2(4, -6), new Vector2(380, 80), _font);
             _detailDynamic.Add(emptyTxt.gameObject);
             return;
         }
@@ -1259,9 +1284,15 @@ internal static class JeiUI
             mealIcon.preserveAspect = true;
             if (mealItem.Icon != null) mealIcon.sprite = mealItem.Icon;
 
-            string mLine = $"<b><color=#F5D76E>{mealItem.DisplayName}</color></b> <color=#7E889B>(#{mealItem.ItemID})</color>";
-            var mTxt = UiKit.MakeText(cardRt, "MealTitle", mLine, 13, Color.white, TextAnchor.MiddleLeft,
-                new Vector2(0, 0), new Vector2(1, 1), new Vector2(0, 0.5f), new Vector2(40, 0), new Vector2(-120, 0), _font);
+            string typeBadge = "";
+            if (a.AssociatedIngredientItemIDs.Contains(mealItem.ItemID))
+                typeBadge = $"<color=#8FD694>{JeiLoc.AttrIngredientBadge}</color> ";
+            else
+                typeBadge = $"<color=#F5D76E>{JeiLoc.AttrMealBadge}</color> ";
+
+            string mLine = $"{typeBadge}<b><color=#FFFFFF>{mealItem.DisplayName}</color></b> <color=#7E889B>(#{mealItem.ItemID})</color>";
+            var mTxt = UiKit.MakeText(cardRt, "MealTitle", mLine, 12, Color.white, TextAnchor.MiddleLeft,
+                new Vector2(0, 0), new Vector2(1, 1), new Vector2(0, 0.5f), new Vector2(38, 0), new Vector2(-120, 0), _font);
 
             int targetMealId = mealItem.ItemID;
             var jumpBtn = UiKit.MakeClickable(cardRt, "JumpBtn", JeiLoc.IsRu ? "В каталог" : "View", () => SelectItem(targetMealId, true),
