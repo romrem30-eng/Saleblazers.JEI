@@ -66,51 +66,11 @@ public static class VintageShowcaseIntegration
             VintageShowcaseItemID = itemDb.ItemArray.Length;
             log?.LogInfo($"[VintageShowcase] Assigning ItemID {VintageShowcaseItemID} (next contiguous array index)...");
 
-            log?.LogInfo("[VintageShowcase] Searching for base display template in HRItemDatabase...");
-            HRItemDatabase.HRItemData templateItem = null;
-            HRDisplayContainer templateDisplay = null;
-            HRItemDatabase.HRItemData fallbackItem = null;
-            HRDisplayContainer fallbackDisplay = null;
-
-            foreach (var it in itemDb.ItemArray)
-            {
-                if (it == null || it.ItemPrefab == null) continue;
-                var dc = it.ItemPrefab.GetComponentInChildren<HRDisplayContainer>();
-                var placeable = it.ItemPrefab.GetComponentInChildren<BaseItemPlaceable>();
-                if (dc != null && placeable != null)
-                {
-                    string name = it.ItemName ?? "";
-                    if (name.IndexOf("Shelf", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        name.IndexOf("Display", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        name.IndexOf("Table", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        name.IndexOf("Counter", StringComparison.OrdinalIgnoreCase) >= 0)
-                    {
-                        templateItem = it;
-                        templateDisplay = dc;
-                        log?.LogInfo($"[VintageShowcase] Selected display template: '{it.ItemName}' (ID {it.ItemID})");
-                        break;
-                    }
-                    if (fallbackItem == null)
-                    {
-                        fallbackItem = it;
-                        fallbackDisplay = dc;
-                    }
-                }
-            }
-
-            if (templateItem == null)
-            {
-                templateItem = fallbackItem;
-                templateDisplay = fallbackDisplay;
-                if (templateItem != null)
-                {
-                    log?.LogInfo($"[VintageShowcase] Using fallback display template: '{templateItem.ItemName}' (ID {templateItem.ItemID})");
-                }
-            }
-
+            // Find optimal store display table template
+            var (templateItem, templateDisplay) = FindBestDisplayTemplate(itemDb, log);
             if (templateItem == null || templateDisplay == null)
             {
-                log?.LogWarning("[VintageShowcase] Could not find any existing display template in item database.");
+                log?.LogWarning("[VintageShowcase] Could not find any existing store display table template in item database.");
                 return;
             }
 
@@ -134,44 +94,104 @@ public static class VintageShowcaseIntegration
                 weapon.ItemID = VintageShowcaseItemID;
             }
 
-            // 3. Setup visual model & materials
-            SetupVisualModel(_showcasePrefab, _showcaseMesh, templateItem.ItemPrefab, log);
+            // 3. Setup visual model, materials & physical colliders
+            SetupVisualModelAndColliders(_showcasePrefab, _showcaseMesh, templateItem.ItemPrefab, log);
 
-            // 4. Setup BoxCollider
-            var col = _showcasePrefab.GetComponent<BoxCollider>();
-            if (col == null) col = _showcasePrefab.AddComponent<BoxCollider>();
-            col.center = new Vector3(0f, 0.425f, 0f);
-            col.size = new Vector3(0.60f, 0.85f, 0.50f);
-            col.isTrigger = true; // Crucial: trigger while held prevents physics pushback against player
-            col.gameObject.layer = templateItem.ItemPrefab.layer;
-
-            // 5. Configure DisplaySockets on HRDisplayContainer
+            // 4. Configure native DisplaySockets on HRDisplayContainer for selling items
             var displayContainer = _showcasePrefab.GetComponentInChildren<HRDisplayContainer>();
             if (displayContainer != null)
             {
-                SetupDisplaySockets(displayContainer, _showcasePrefab.transform, templateDisplay, log);
+                SetupDisplaySockets(displayContainer, log);
             }
 
-            // 6. Setup icon
+            // 5. Setup icon
             _showcaseSprite = LoadShowcaseSprite(log);
 
-            // 7. Create & register HRItemData in HRItemDatabase
+            // 6. Create & register HRItemData in HRItemDatabase
             var newItem = CreateItemData(itemDb, _showcasePrefab, _showcaseSprite, templateItem);
             AppendItemToDatabase(itemDb, newItem);
 
-            // 8. Register crafting recipe in HRCraftingDatabase
+            // 7. Register crafting recipe in HRCraftingDatabase
             if (craftDb != null)
             {
                 RegisterCraftingRecipe(craftDb, log);
             }
 
             _registered = true;
-            log?.LogInfo($"[VintageShowcase] Successfully registered '{ShowcaseNameEn}' (#{VintageShowcaseItemID}) with 4 display sockets and crafting recipe!");
+            log?.LogInfo($"[VintageShowcase] Successfully registered '{ShowcaseNameEn}' (#{VintageShowcaseItemID}) with {displayContainer?.DisplaySockets?.Length ?? 0} display sockets and crafting recipe!");
         }
         catch (Exception ex)
         {
             log?.LogError($"[VintageShowcase] Registration failed: {ex}");
         }
+    }
+
+    private static (HRItemDatabase.HRItemData item, HRDisplayContainer display) FindBestDisplayTemplate(HRItemDatabase itemDb, ManualLogSource log)
+    {
+        HRItemDatabase.HRItemData bestItem = null;
+        HRDisplayContainer bestDisplay = null;
+        int bestScore = int.MinValue;
+
+        log?.LogInfo("[VintageShowcase] Scanning HRItemDatabase for optimal store display table...");
+
+        foreach (var it in itemDb.ItemArray)
+        {
+            if (it == null || it.ItemPrefab == null) continue;
+            var dc = it.ItemPrefab.GetComponentInChildren<HRDisplayContainer>();
+            var placeable = it.ItemPrefab.GetComponentInChildren<BaseItemPlaceable>();
+            if (dc == null || placeable == null) continue;
+
+            string name = it.ItemName ?? "";
+            int socketCount = dc.DisplaySockets != null ? dc.DisplaySockets.Length : 0;
+
+            int score = 0;
+
+            // Specific store display table keywords
+            if (name.IndexOf("Display Table", StringComparison.OrdinalIgnoreCase) >= 0) score += 400;
+            else if (name.IndexOf("Display Case", StringComparison.OrdinalIgnoreCase) >= 0) score += 350;
+            else if (name.IndexOf("Display Stand", StringComparison.OrdinalIgnoreCase) >= 0) score += 300;
+            else if (name.IndexOf("Showcase", StringComparison.OrdinalIgnoreCase) >= 0) score += 300;
+            else if (name.IndexOf("Sales Table", StringComparison.OrdinalIgnoreCase) >= 0) score += 250;
+            else if (name.IndexOf("Shop Table", StringComparison.OrdinalIgnoreCase) >= 0) score += 250;
+            else if (name.IndexOf("Store Table", StringComparison.OrdinalIgnoreCase) >= 0) score += 250;
+            else if (name.IndexOf("Shop Counter", StringComparison.OrdinalIgnoreCase) >= 0) score += 200;
+            else if (name.IndexOf("Display", StringComparison.OrdinalIgnoreCase) >= 0) score += 150;
+            else if (name.IndexOf("Counter", StringComparison.OrdinalIgnoreCase) >= 0) score += 100;
+            else if (name.IndexOf("Table", StringComparison.OrdinalIgnoreCase) >= 0) score += 50;
+            else if (name.IndexOf("Shelf", StringComparison.OrdinalIgnoreCase) >= 0) score += 10;
+
+            // Socket count weighting
+            if (socketCount == 4) score += 100; // Exact match for 4-shelf vintage showcase
+            else if (socketCount > 4) score += 60;
+            else if (socketCount >= 2) score += 40;
+            else if (socketCount == 0) score -= 200;
+
+            // Heavy penalties for non-merchandise / wall / liquid / weird containers
+            if (name.IndexOf("Ladder", StringComparison.OrdinalIgnoreCase) >= 0) score -= 500;
+            if (name.IndexOf("Portrait", StringComparison.OrdinalIgnoreCase) >= 0) score -= 500;
+            if (name.IndexOf("FishTank", StringComparison.OrdinalIgnoreCase) >= 0) score -= 500;
+            if (name.IndexOf("Crate", StringComparison.OrdinalIgnoreCase) >= 0) score -= 300;
+            if (name.IndexOf("Basket", StringComparison.OrdinalIgnoreCase) >= 0) score -= 300;
+            if (name.IndexOf("Fridge", StringComparison.OrdinalIgnoreCase) >= 0) score -= 200;
+
+            if (score > 0)
+            {
+                log?.LogInfo($"[VintageShowcase] Candidate: '{name}' (ID {it.ItemID}), Sockets={socketCount}, Score={score}");
+            }
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestItem = it;
+                bestDisplay = dc;
+            }
+        }
+
+        if (bestItem != null)
+        {
+            log?.LogInfo($"[VintageShowcase] Selected best store display template: '{bestItem.ItemName}' (ID {bestItem.ItemID}) with {bestDisplay.DisplaySockets?.Length ?? 0} sockets (Score {bestScore})");
+        }
+        return (bestItem, bestDisplay);
     }
 
     private static Mesh LoadShowcaseMesh(ManualLogSource log)
@@ -457,15 +477,30 @@ public static class VintageShowcaseIntegration
         return mat;
     }
 
-    private static void SetupVisualModel(GameObject prefab, Mesh mesh, GameObject templatePrefab, ManualLogSource log)
+    private static void SetupVisualModelAndColliders(GameObject prefab, Mesh mesh, GameObject templatePrefab, ManualLogSource log)
     {
-        // Hide original mesh renderers
-        foreach (var r in prefab.GetComponentsInChildren<MeshRenderer>(true))
+        // 1. Hide original mesh renderers
+        foreach (var r in prefab.GetComponentsInChildren<Renderer>(true))
         {
             r.enabled = false;
         }
 
-        // Create new child object
+        // 2. Disable all old solid physical colliders from the template visual model
+        foreach (var c in prefab.GetComponentsInChildren<Collider>(true))
+        {
+            // Do NOT disable trigger colliders (they are the interaction sockets for placing items!)
+            if (c.isTrigger) continue;
+            c.enabled = false;
+        }
+
+        // 3. Make any Rigidbody kinematic and disable collisions to prevent physics interference
+        foreach (var rb in prefab.GetComponentsInChildren<Rigidbody>(true))
+        {
+            rb.isKinematic = true;
+            rb.detectCollisions = false;
+        }
+
+        // 4. Create new visual root
         var visualObj = new GameObject("VintageShowcaseVisual");
         visualObj.transform.SetParent(prefab.transform, false);
         visualObj.transform.localPosition = Vector3.zero;
@@ -528,6 +563,14 @@ public static class VintageShowcaseIntegration
 
         mr.sharedMaterials = new Il2CppReferenceArray<Material>(new[] { woodMat, glassMat, brassMat, floorMat });
 
+        // 5. Setup BoxCollider - DISABLED while held in hands! Zero physical presence while held!
+        var mainCol = prefab.GetComponent<BoxCollider>();
+        if (mainCol == null) mainCol = prefab.AddComponent<BoxCollider>();
+        mainCol.center = new Vector3(0f, 0.425f, 0f);
+        mainCol.size = new Vector3(0.60f, 0.85f, 0.50f);
+        mainCol.isTrigger = false;
+        mainCol.enabled = false; // CRITICAL: Disabled while held! Zero physical pushback / sliding!
+
         var placeable = prefab.GetComponentInChildren<BaseItemPlaceable>();
         if (placeable != null)
         {
@@ -547,7 +590,7 @@ public static class VintageShowcaseIntegration
                         if (bCol != null)
                         {
                             bCol.isTrigger = false;
-                            bCol.enabled = true;
+                            bCol.enabled = true; // Solid physical obstacle once placed on plot!
                         }
                     }
                     existingPlaced?.Invoke(p, pos, rot);
@@ -558,9 +601,15 @@ public static class VintageShowcaseIntegration
                 }
             }));
         }
+
+        var weapon = prefab.GetComponent<BaseWeapon>() ?? prefab.GetComponentInChildren<BaseWeapon>();
+        if (weapon != null)
+        {
+            weapon.ItemID = VintageShowcaseItemID;
+        }
     }
 
-    private static void SetupDisplaySockets(HRDisplayContainer container, Transform root, HRDisplayContainer templateContainer, ManualLogSource log)
+    private static void SetupDisplaySockets(HRDisplayContainer container, ManualLogSource log)
     {
         var socketPositions = new Vector3[] {
             new(-0.14f, 0.09f, 0.0f),  // Bottom shelf left
@@ -569,46 +618,31 @@ public static class VintageShowcaseIntegration
             new(0.14f, 0.45f, 0.0f)   // Middle glass shelf right
         };
 
-        var sockets = new List<DisplaySocket>();
-        var holder = container.Cast<IDisplaySocketHolder>();
-
-        for (int i = 0; i < socketPositions.Length; i++)
+        if (container.DisplaySockets != null && container.DisplaySockets.Length > 0)
         {
-            var socketObj = new GameObject($"DisplaySocket_{i}");
-            socketObj.transform.SetParent(root, false);
-            socketObj.transform.localPosition = socketPositions[i];
-            socketObj.transform.localRotation = Quaternion.identity;
-            socketObj.layer = root.gameObject.layer;
-
-            var col = socketObj.AddComponent<BoxCollider>();
-            col.center = new Vector3(0f, 0.15f, 0f);
-            col.size = new Vector3(0.24f, 0.30f, 0.22f);
-            col.isTrigger = true; // MUST be trigger: display sockets only detect cursor hover, never block movement!
-
-            var s = new DisplaySocket();
-            s.Start = socketObj.transform;
-            s.SocketHolder = holder;
-            s.SocketIndex = i;
-            s.Capacity = 1;
-            s.MaxStackCount = 5;
-            s.Dimension = new Vector3(0.24f, 0.30f, 0.22f);
-            s.PriceTagOffset = new Vector3(0f, 0.22f, -0.12f);
-            s.AggregateCollider = col;
-
-            if (templateContainer != null && templateContainer.DisplaySockets != null && templateContainer.DisplaySockets.Length > 0)
+            log?.LogInfo($"[VintageShowcase] Repositioning {container.DisplaySockets.Length} native display sockets to showcase shelves...");
+            for (int i = 0; i < container.DisplaySockets.Length; i++)
             {
-                var src = templateContainer.DisplaySockets[0];
-                s.SocketAlignStrategy = src.SocketAlignStrategy;
-                s.Alignment = src.Alignment;
-                s.Spacing = src.Spacing;
-                s.StackingRule = src.StackingRule;
+                var s = container.DisplaySockets[i];
+                if (s == null) continue;
+
+                var targetPos = socketPositions[i % socketPositions.Length];
+                if (s.Start != null)
+                {
+                    s.Start.localPosition = targetPos;
+                    s.Start.localRotation = Quaternion.identity;
+                }
+
+                if (s.AggregateCollider != null)
+                {
+                    s.AggregateCollider.transform.localPosition = targetPos;
+                    s.AggregateCollider.isTrigger = true; // Sockets are triggers for interaction raycasts
+                }
+
+                s.Dimension = new Vector3(0.24f, 0.30f, 0.22f);
+                s.PriceTagOffset = new Vector3(0f, 0.22f, -0.12f);
             }
-
-            sockets.Add(s);
         }
-
-        container.DisplaySockets = new Il2CppReferenceArray<DisplaySocket>(sockets.ToArray());
-        log?.LogInfo($"[VintageShowcase] Configured {sockets.Count} display sockets on showcase.");
     }
 
     private static Sprite LoadShowcaseSprite(ManualLogSource log)
@@ -850,3 +884,72 @@ public static class Patch_ControlSettingsMenuHelper_TryReplaceBindingString
         return null;
     }
 }
+
+[HarmonyPatch(typeof(BaseWeapon), nameof(BaseWeapon.HandleEquip))]
+public static class Patch_BaseWeapon_HandleEquip
+{
+    [HarmonyPostfix]
+    public static void Postfix(BaseWeapon __instance, bool bEquipping, BaseWeaponManager InWeaponManager)
+    {
+        try
+        {
+            if (__instance != null && __instance.ItemID == VintageShowcaseIntegration.VintageShowcaseItemID)
+            {
+                // When showcase is held/equipped, disable all non-trigger colliders to guarantee zero skating
+                var colliders = __instance.GetComponentsInChildren<Collider>(true);
+                foreach (var c in colliders)
+                {
+                    if (c != null && !c.isTrigger)
+                    {
+                        c.enabled = false;
+                    }
+                }
+
+                // Ignore collision with the equipping player character
+                if (InWeaponManager != null)
+                {
+                    var playerCols = InWeaponManager.GetComponentsInChildren<Collider>(true);
+                    foreach (var pc in playerCols)
+                    {
+                        if (pc == null) continue;
+                        foreach (var c in colliders)
+                        {
+                            if (c != null)
+                            {
+                                Physics.IgnoreCollision(pc, c, true);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
+    }
+}
+
+[HarmonyPatch(typeof(BaseWeapon), nameof(BaseWeapon.SetPlacementCollisionEnabled))]
+public static class Patch_BaseWeapon_SetPlacementCollisionEnabled
+{
+    [HarmonyPrefix]
+    public static bool Prefix(BaseWeapon __instance, bool bEnabled)
+    {
+        if (__instance != null && __instance.ItemID == VintageShowcaseIntegration.VintageShowcaseItemID)
+        {
+            // While actively held in hands (placement preview), NEVER enable solid colliders!
+            if (__instance.ActivelyEquipped)
+            {
+                var colliders = __instance.GetComponentsInChildren<Collider>(true);
+                foreach (var c in colliders)
+                {
+                    if (c != null && !c.isTrigger)
+                    {
+                        c.enabled = false;
+                    }
+                }
+                return false;
+            }
+        }
+        return true;
+    }
+}
+
