@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using BepInEx.Configuration;
 using Rewired;
 using TMPro;
@@ -1116,8 +1117,12 @@ internal static class JeiUI
         {
             msb.Append("<color=#8FD694><b>").Append(JeiLoc.DropsLabel).Append("</b></color> ").Append(string.Join(", ", drops)).AppendLine();
         }
+        else if (e.Recipes.Count == 0 && (e.IsFood || e.Categories.Any(c => c.IndexOf("Weapon", StringComparison.OrdinalIgnoreCase) >= 0 || c.IndexOf("Armor", StringComparison.OrdinalIgnoreCase) >= 0 || c.IndexOf("Equipment", StringComparison.OrdinalIgnoreCase) >= 0 || c.IndexOf("Consumable", StringComparison.OrdinalIgnoreCase) >= 0 || c.IndexOf("Resource", StringComparison.OrdinalIgnoreCase) >= 0)))
+        {
+            msb.Append("<color=#8FD694><b>").Append(JeiLoc.DropsLabel).Append("</b></color> <color=#B0B8C8>").Append(JeiLoc.WorldLootOrMerchants).Append("</color>").AppendLine();
+        }
         AppendUnlockSummary(msb, e.Unlock);
-        _detailMetaText.fontSize = 12;
+        _detailMetaText.fontSize = 11.5f;
         _detailMetaText.text = msb.ToString();
 
         if (e.Unlock != null && e.Unlock.RequiredItemID > 0 && JeiCatalog.Items.TryGetValue(e.Unlock.RequiredItemID, out var reqItem))

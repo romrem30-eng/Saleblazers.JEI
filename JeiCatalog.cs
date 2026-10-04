@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
+using System.Linq;
 using BepInEx.Logging;
 using TMPro;
 using UnityEngine;
@@ -182,6 +184,47 @@ public class JeiAttributeEntry
         : (!string.IsNullOrEmpty(DurationTextEn) ? DurationTextEn : DurationTextRu);
 }
 
+public class JeiItemDropSource
+{
+    public string GroupKey;
+    public string NameRu;
+    public string NameEn;
+    public float MinChance;
+    public float MaxChance;
+    public int MinAmount;
+    public int MaxAmount;
+    public bool IsBoss;
+
+    public string Format(bool ru)
+    {
+        string name = ru ? NameRu : NameEn;
+        string chanceText;
+        if (Mathf.Approximately(MinChance, MaxChance) || MaxChance <= MinChance)
+        {
+            float c = MaxChance * 100f;
+            chanceText = c >= 99.5f ? "100%" : (c < 1f ? $"{c:0.#}%" : $"{Mathf.RoundToInt(c)}%");
+        }
+        else
+        {
+            float c1 = MinChance * 100f;
+            float c2 = MaxChance * 100f;
+            chanceText = $"{Mathf.RoundToInt(c1)}-{Mathf.RoundToInt(c2)}%";
+        }
+
+        string amtText = "";
+        if (MinAmount > 0 || MaxAmount > 0)
+        {
+            if (MinAmount == MaxAmount || MaxAmount <= 0) amtText = $"{MinAmount}x";
+            else if (MinAmount <= 0) amtText = $"{MaxAmount}x";
+            else amtText = $"{MinAmount}-{MaxAmount}x";
+        }
+
+        if (!string.IsNullOrEmpty(amtText))
+            return $"{name} <color=#F5D76E>({chanceText}, {amtText})</color>";
+        return $"{name} <color=#F5D76E>({chanceText})</color>";
+    }
+}
+
 public class JeiItemEntry
 {
     public int ItemID;
@@ -193,6 +236,7 @@ public class JeiItemEntry
     public List<string> Categories = new();
     public List<JeiRecipe> Recipes = new();  // R: produces this
     public List<JeiRecipe> Usages = new();   // U: uses this as ingredient (or crafted at this station)
+    public List<JeiItemDropSource> DropSources = new();
     public List<string> RawWorldDrops = new(); // raw world source keys (from CSV)
     public JeiUnlockInfo Unlock;             // research / unlock info
     internal HRItemDatabase.HRItemData Source;
@@ -217,17 +261,47 @@ public class JeiItemEntry
         }
     }
 
-    public List<string> GetLocalizedWorldDrops()
+    public List<string> GetFormattedDropSources(int maxCount = 3)
     {
-        var list = new List<string>(RawWorldDrops.Count);
-        for (int i = 0; i < RawWorldDrops.Count; i++)
+        if (DropSources.Count > 0)
         {
-            string loc = JeiCatalog.BeautifyDropSource(RawWorldDrops[i], JeiLoc.IsRu);
-            if (!string.IsNullOrEmpty(loc) && !list.Contains(loc))
-                list.Add(loc);
+            var sorted = DropSources
+                .OrderByDescending(d => d.IsBoss)
+                .ThenByDescending(d => d.MaxChance)
+                .ToList();
+
+            var res = new List<string>();
+            int count = Mathf.Min(sorted.Count, maxCount);
+            for (int i = 0; i < count; i++)
+            {
+                res.Add(sorted[i].Format(JeiLoc.IsRu));
+            }
+
+            if (sorted.Count > maxCount)
+            {
+                int remaining = sorted.Count - maxCount;
+                res.Add(JeiLoc.IsRu ? $"<color=#8E9AA8>+ ещё {remaining}</color>" : $"<color=#8E9AA8>+ {remaining} more</color>");
+            }
+
+            return res;
         }
-        return list;
+
+        if (RawWorldDrops.Count > 0)
+        {
+            var list = new List<string>(RawWorldDrops.Count);
+            for (int i = 0; i < RawWorldDrops.Count; i++)
+            {
+                string loc = JeiCatalog.BeautifyDropSource(RawWorldDrops[i], JeiLoc.IsRu);
+                if (!string.IsNullOrEmpty(loc) && !list.Contains(loc))
+                    list.Add(loc);
+            }
+            return list;
+        }
+
+        return new List<string>();
     }
+
+    public List<string> GetLocalizedWorldDrops() => GetFormattedDropSources(3);
 
     public bool MatchesCategory(JeiCategoryFilter filter)
     {
@@ -333,7 +407,7 @@ internal static class JeiCatalog
     private static readonly Dictionary<int, JeiItemEntry> _items = new();
     private static readonly List<JeiAttributeEntry> _attributes = new();
     private static readonly Dictionary<int, JeiAttributeEntry> _attributesById = new();
-    private static readonly Dictionary<int, List<string>> _dropSources = new();
+    private static readonly Dictionary<int, List<JeiItemDropSource>> _itemDropSources = new();
     private static readonly Dictionary<int, int> _stationItemIds = new();
     private static readonly HashSet<int> _allStationItemIds = new();
 
@@ -348,7 +422,7 @@ internal static class JeiCatalog
     public static void Init(ManualLogSource log)
     {
         _log = log;
-        ParseDropCsv();
+        ParseAllDropCsvs();
     }
 
     public static void EnsureScanned()
@@ -420,7 +494,12 @@ internal static class JeiCatalog
                     foreach (var cat in it.CategoryList)
                         if (cat?.CategoryName != null && !e.Categories.Contains(cat.CategoryName))
                             e.Categories.Add(cat.CategoryName);
-                if (_dropSources.TryGetValue(it.ItemID, out var srcs)) e.RawWorldDrops.AddRange(srcs);
+                if (_itemDropSources.TryGetValue(it.ItemID, out var dList))
+                {
+                    e.DropSources.AddRange(dList);
+                    foreach (var ds in dList)
+                        if (!e.RawWorldDrops.Contains(ds.GroupKey)) e.RawWorldDrops.Add(ds.GroupKey);
+                }
                 _items[it.ItemID] = e;
             }
         }
@@ -1941,82 +2020,254 @@ internal static class JeiCatalog
         }
     }
 
+    private static (string groupKey, string nameRu, string nameEn, bool isBoss)? MatchCharacter(string s)
+    {
+        // Bosses
+        if (s.Contains("Bellstalker"))
+            return ("Bellstalker", "Беллсталкер (Босс)", "Bellstalker (Boss)", true);
+        if (s.Contains("Zena"))
+            return ("Zena", "Зена (Босс)", "Zena (Boss)", true);
+        if (s.Contains("GiantMonkey") || s.Contains("Apex_Bonehead"))
+            return ("GiantMonkey", "Гигантская обезьяна (Босс)", "Giant Monkey (Boss)", true);
+        if (s.Contains("BossAnimal_Tier1_Boar"))
+            return ("BossBoar", "Вепрь-вожак (Босс)", "Boar Leader (Boss)", true);
+        if (s.Contains("Crab_LargeBoss"))
+            return ("BossCrab", "Карракс (Босс)", "Karrax Crab (Boss)", true);
+        if (s.Contains("Gulper_Matriarch"))
+            return ("BossGulper", "Матка гульперов (Босс)", "Gulper Matriarch (Boss)", true);
+        if (s.Contains("BossCowboy"))
+            return ("BossCowboy", "Главарь ковбоев (Босс)", "Cowboy Boss", true);
+        if (s.Contains("BossRonin"))
+            return ("BossRonin", "Главарь ронинов (Босс)", "Ronin Boss", true);
+        if (s.Contains("Ronin_Sifu"))
+            return ("RoninSifu", "Шифу (Босс)", "Sifu (Boss)", true);
+
+        // Animals
+        if (s.Contains("Boar"))
+            return ("Boar", "Кабаны", "Boars", false);
+        if (s.Contains("Wolf"))
+            return ("Wolf", "Волки", "Wolves", false);
+        if (s.Contains("Chicken"))
+            return ("Chicken", "Куры", "Chickens", false);
+        if (s.Contains("Duck"))
+            return ("Duck", "Утки", "Ducks", false);
+        if (s.Contains("Cow"))
+            return ("Cow", "Коровы", "Cows", false);
+        if (s.Contains("Rabbit"))
+            return ("Rabbit", "Кролики", "Rabbits", false);
+        if (s.Contains("Frog"))
+            return ("Frog", "Лягушки", "Frogs", false);
+        if (s.Contains("Crab"))
+            return ("Crab", "Крабы", "Crabs", false);
+        if (s.Contains("Shark"))
+            return ("Shark", "Акулы", "Sharks", false);
+        if (s.Contains("Gulper"))
+            return ("Gulper", "Гульперы", "Gulpers", false);
+        if (s.Contains("Bird") || s.Contains("Seagull"))
+            return ("Bird", "Птицы", "Birds", false);
+
+        // Fish (Fishing / World drops)
+        if (s.Contains("KoiFish"))
+            return ("KoiFish", "Карп кои (рыбалка)", "Koi Fish (Fishing)", false);
+        if (s.Contains("Salmon"))
+            return ("Salmon", "Лосось (рыбалка)", "Salmon (Fishing)", false);
+        if (s.Contains("Seabass"))
+            return ("Seabass", "Морской окунь (рыбалка)", "Seabass (Fishing)", false);
+        if (s.Contains("Squid"))
+            return ("Squid", "Кальмар (рыбалка)", "Squid (Fishing)", false);
+        if (s.Contains("Pufferfish"))
+            return ("Pufferfish", "Рыба-фугу (рыбалка)", "Pufferfish (Fishing)", false);
+
+        // Factions
+        if (s.Contains("Cultist"))
+            return ("Cultist", "Культисты", "Cultists", false);
+        if (s.Contains("Bellcoat") || s.Contains("Bellsworn") || s.Contains("ApexHunter"))
+            return ("Bellcoat", "Служители Колокола", "Bellcoat Servants", false);
+        if (s.Contains("Ronin") || s.Contains("Samurai"))
+            return ("Ronin", "Ронины / Самураи", "Ronin / Samurai", false);
+        if (s.Contains("Ranger"))
+            return ("Ranger", "Рейнджеры", "Rangers", false);
+        if (s.Contains("Shepherd"))
+            return ("Shepherd", "Пастыри", "Shepherds", false);
+        if (s.Contains("Knight"))
+            return ("Knight", "Рыцари", "Knights", false);
+        if (s.Contains("KazaiVillager") || s.Contains("Customer"))
+            return ("Villager", "Жители Казаи", "Kazai Villagers", false);
+        if (s.Contains("JessBro") || s.Contains("JessSis"))
+            return ("JessFamily", "Семья Джесс", "Jess Family", false);
+        if (s.Contains("Cowboy") || s.Contains("Gunner") || s.Contains("Henchman"))
+            return ("Cowboy", "Ковбои / Бандиты", "Cowboys / Bandits", false);
+
+        return null;
+    }
+
+    private static (string groupKey, string nameRu, string nameEn, bool isBoss)? MatchResource(string s)
+    {
+        if (s.Contains("Bamboo"))
+            return ("Bamboo", "Бамбук", "Bamboo", false);
+        if (s.Contains("Birch"))
+            return ("Birch", "Берёза", "Birch Tree", false);
+        if (s.Contains("Pine") || s.Contains("Pinon"))
+            return ("Pine", "Сосна", "Pine Tree", false);
+        if (s.Contains("Maple"))
+            return ("Maple", "Клён", "Maple Tree", false);
+        if (s.Contains("Oak"))
+            return ("Oak", "Дуб", "Oak Tree", false);
+        if (s.Contains("Spruce"))
+            return ("Spruce", "Ель", "Spruce Tree", false);
+        if (s.Contains("CherryBlossom"))
+            return ("CherryBlossom", "Сакура", "Cherry Blossom", false);
+        if (s.Contains("Coconut"))
+            return ("Coconut", "Кокосовая пальма", "Coconut Palm", false);
+        if (s.Contains("Banana"))
+            return ("Banana", "Банановая пальма", "Banana Tree", false);
+        if (s.Contains("Cactus"))
+            return ("Cactus", "Кактус", "Cactus", false);
+
+        if (s.Contains("CopperRock"))
+            return ("CopperRock", "Медная жила", "Copper Ore Vein", false);
+        if (s.Contains("IronRock"))
+            return ("IronRock", "Железная жила", "Iron Ore Vein", false);
+        if (s.Contains("GoldRock"))
+            return ("GoldRock", "Золотая жила", "Gold Ore Vein", false);
+        if (s.Contains("StoneRock") || s.Contains("SandRock") || s.Contains("RedRock") || s.Contains("RedStone") || s.Contains("RockSalvage"))
+            return ("StoneRock", "Каменное месторождение", "Stone Deposit", false);
+
+        if (s.Contains("AmmoCrate") || s.Contains("AmmBox") || s.Contains("Crate_Ammo"))
+            return ("AmmoCrate", "Ящик боеприпасов", "Ammo Crate", false);
+        if (s.Contains("Salvage") || s.Contains("Outpost") || s.Contains("VaseDecor") || s.Contains("VaseOrnate") || s.Contains("VaseStorage"))
+            return ("Salvage", "Обломки / Руины", "Salvage / Ruins", false);
+
+        if (s.Contains("FiberBush") || s.Contains("Shrub") || s.Contains("Bush"))
+            return ("FiberBush", "Кустарник / Волокна", "Fiber Bush", false);
+        if (s.Contains("GlowMushroom"))
+            return ("GlowMushroom", "Светящиеся грибы", "Glow Mushrooms", false);
+
+        if (s.Contains("Wheat"))
+            return ("Wheat", "Пшеница (урожай)", "Wheat (Harvest)", false);
+        if (s.Contains("Tomato"))
+            return ("Tomato", "Томаты (урожай)", "Tomato (Harvest)", false);
+        if (s.Contains("Corn"))
+            return ("Corn", "Кукуруза (урожай)", "Corn (Harvest)", false);
+        if (s.Contains("Grape"))
+            return ("Grape", "Виноград (урожай)", "Grape (Harvest)", false);
+        if (s.Contains("Cabbage"))
+            return ("Cabbage", "Капуста (урожай)", "Cabbage (Harvest)", false);
+        if (s.Contains("Rice"))
+            return ("Rice", "Рис (урожай)", "Rice (Harvest)", false);
+        if (s.Contains("Berrybush"))
+            return ("Berrybush", "Ягодный куст", "Berry Bush", false);
+
+        if (s.Contains("Tree") || s.Contains("Stump") || s.Contains("Log") || s.Contains("Sproutling"))
+            return ("Tree", "Деревья", "Trees", false);
+
+        return null;
+    }
+
+    private static (string groupKey, string nameRu, string nameEn, bool isBoss) ResolveSourceInfo(string raw, bool isCharacter)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return ("Unknown", "Неизвестно", "Unknown", false);
+        string s = raw.Trim();
+
+        var res = isCharacter ? MatchCharacter(s) : MatchResource(s);
+        if (res.HasValue) return res.Value;
+
+        res = isCharacter ? MatchResource(s) : MatchCharacter(s);
+        if (res.HasValue) return res.Value;
+
+        string clean = s;
+        if (clean.StartsWith("PF_")) clean = clean.Substring(3);
+        clean = clean.Replace("_Variant", "").Replace(" Variant", "").Replace("_Mineable", "").Replace('_', ' ').Trim();
+        return (clean, clean, clean, false);
+    }
+
     public static string BeautifyDropSource(string raw, bool ru)
     {
-        if (string.IsNullOrWhiteSpace(raw)) return raw;
-        string s = raw.Trim();
-        if (s.StartsWith("PF_")) s = s.Substring(3);
-        s = s.Replace("_Variant", "").Replace(" Variant", "").Replace("_Mineable", "");
+        var info = ResolveSourceInfo(raw, false);
+        return ru ? info.nameRu : info.nameEn;
+    }
 
-        if (ru)
+    private static void AddDropSource(int dropId, string rawSource, float chance, int minAmt, int maxAmt, bool isCharacter)
+    {
+        if (dropId <= 0) return;
+        var info = ResolveSourceInfo(rawSource, isCharacter);
+
+        if (!_itemDropSources.TryGetValue(dropId, out var list))
         {
-            if (s.Contains("Bamboo")) return "Бамбук (дерево)";
-            if (s.Contains("Birch")) return "Берёза";
-            if (s.Contains("Pine") || s.Contains("Pinon")) return "Сосна";
-            if (s.Contains("Maple")) return "Клён";
-            if (s.Contains("Oak")) return "Дуб";
-            if (s.Contains("Spruce")) return "Ель";
-            if (s.Contains("CherryBlossom")) return "Сакура";
-            if (s.Contains("Coconut")) return "Кокосовая пальма";
-            if (s.Contains("Banana")) return "Банановая пальма";
-            if (s.Contains("Cactus")) return "Кактус";
-            if (s.Contains("FiberBush") || s.Contains("Shrub") || s.Contains("Bush")) return "Кустарник";
-            if (s.Contains("CopperRock")) return "Медная жила";
-            if (s.Contains("IronRock")) return "Железная жила";
-            if (s.Contains("GoldRock")) return "Золотая жила";
-            if (s.Contains("StoneRock") || s.Contains("SandRock") || s.Contains("RedRock") || s.Contains("RockSalvage")) return "Каменная порода";
-            if (s.Contains("AmmoCrate") || s.Contains("AmmBox") || s.Contains("Crate_Ammo")) return "Ящик боеприпасов";
-            if (s.Contains("StoreSalvage") || s.Contains("WoodSalvage") || s.Contains("Outpost")) return "Обломки / Руины";
-            if (s.Contains("Tree") || s.Contains("Stump")) return "Дерево";
+            list = new List<JeiItemDropSource>();
+            _itemDropSources[dropId] = list;
+        }
+
+        var existing = list.FirstOrDefault(d => d.GroupKey == info.groupKey);
+        if (existing != null)
+        {
+            if (chance > 0f)
+            {
+                if (existing.MinChance <= 0f) existing.MinChance = chance;
+                else existing.MinChance = Mathf.Min(existing.MinChance, chance);
+                existing.MaxChance = Mathf.Max(existing.MaxChance, chance);
+            }
+            if (minAmt > 0)
+                existing.MinAmount = existing.MinAmount <= 0 ? minAmt : Mathf.Min(existing.MinAmount, minAmt);
+            if (maxAmt > 0)
+                existing.MaxAmount = Mathf.Max(existing.MaxAmount, maxAmt);
+            existing.IsBoss |= info.isBoss;
         }
         else
         {
-            if (s.Contains("Bamboo")) return "Bamboo Tree";
-            if (s.Contains("Birch")) return "Birch Tree";
-            if (s.Contains("Pine") || s.Contains("Pinon")) return "Pine Tree";
-            if (s.Contains("Maple")) return "Maple Tree";
-            if (s.Contains("Oak")) return "Oak Tree";
-            if (s.Contains("Spruce")) return "Spruce Tree";
-            if (s.Contains("CherryBlossom")) return "Cherry Blossom";
-            if (s.Contains("Coconut")) return "Coconut Tree";
-            if (s.Contains("Banana")) return "Banana Tree";
-            if (s.Contains("Cactus")) return "Cactus";
-            if (s.Contains("FiberBush") || s.Contains("Shrub") || s.Contains("Bush")) return "Fiber Bush";
-            if (s.Contains("CopperRock")) return "Copper Ore Vein";
-            if (s.Contains("IronRock")) return "Iron Ore Vein";
-            if (s.Contains("GoldRock")) return "Gold Ore Vein";
-            if (s.Contains("StoneRock") || s.Contains("SandRock") || s.Contains("RedRock") || s.Contains("RockSalvage")) return "Stone Deposit";
-            if (s.Contains("AmmoCrate") || s.Contains("AmmBox") || s.Contains("Crate_Ammo")) return "Ammo Crate";
-            if (s.Contains("StoreSalvage") || s.Contains("WoodSalvage") || s.Contains("Outpost")) return "Salvage / Ruins";
-            if (s.Contains("Tree") || s.Contains("Stump")) return "Tree";
+            list.Add(new JeiItemDropSource
+            {
+                GroupKey = info.groupKey,
+                NameRu = info.nameRu,
+                NameEn = info.nameEn,
+                MinChance = chance,
+                MaxChance = chance,
+                MinAmount = minAmt,
+                MaxAmount = maxAmt,
+                IsBoss = info.isBoss
+            });
         }
-
-        return s.Replace('_', ' ');
     }
 
-    private static void ParseDropCsv()
+    private static void ParseSingleDropCsv(string path, bool isCharacter)
+    {
+        if (!File.Exists(path)) return;
+        string currentSource = null;
+        foreach (var raw in File.ReadAllLines(path))
+        {
+            if (string.IsNullOrWhiteSpace(raw)) continue;
+            var p = raw.Split(',');
+            if (p.Length > 0 && p[0].Trim().Length > 0 && p[0].Trim()[0] != '~')
+            {
+                currentSource = p[0].Trim();
+                continue;
+            }
+
+            if (p.Length > 8 && int.TryParse(p[6].Trim(), out int dropId) && currentSource != null)
+            {
+                float.TryParse(p[8].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out float chance);
+                int minAmt = 0;
+                int maxAmt = 0;
+                if (p.Length > 9) int.TryParse(p[9].Trim(), out minAmt);
+                if (p.Length > 10) int.TryParse(p[10].Trim(), out maxAmt);
+
+                AddDropSource(dropId, currentSource, chance, minAmt, maxAmt, isCharacter);
+            }
+        }
+    }
+
+    private static void ParseAllDropCsvs()
     {
         try
         {
-            string path = Path.Combine(Application.streamingAssetsPath, "Databases", "MineableResourceCSV.csv");
-            if (!File.Exists(path)) return;
-            string currentSource = null;
-            foreach (var raw in File.ReadAllLines(path))
-            {
-                if (string.IsNullOrWhiteSpace(raw)) continue;
-                var p = raw.Split(',');
-                if (p.Length > 0 && p[0].Trim().Length > 0 && p[0].Trim()[0] != '~')
-                {
-                    currentSource = p[0].Trim();
-                    continue;
-                }
-                if (p.Length > 6 && int.TryParse(p[6].Trim(), out int dropId) && currentSource != null)
-                {
-                    if (!_dropSources.TryGetValue(dropId, out var list)) { list = new List<string>(); _dropSources[dropId] = list; }
-                    if (!list.Contains(currentSource)) list.Add(currentSource);
-                }
-            }
-            _log?.LogInfo($"[JEI] Drop CSV parsed: {_dropSources.Count} drop items mapped.");
+            _itemDropSources.Clear();
+            string charCsv = Path.Combine(Application.streamingAssetsPath, "Databases", "MineableCharacterCSV.csv");
+            ParseSingleDropCsv(charCsv, true);
+
+            string resCsv = Path.Combine(Application.streamingAssetsPath, "Databases", "MineableResourceCSV.csv");
+            ParseSingleDropCsv(resCsv, false);
+
+            _log?.LogInfo($"[JEI] Drop CSVs parsed: {_itemDropSources.Count} drop items mapped with rich source info.");
         }
         catch (Exception e)
         {

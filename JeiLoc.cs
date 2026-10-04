@@ -102,6 +102,7 @@ internal static class JeiLoc
     public static string BasePriceLabel => Pick("База:", "Base:");
     public static string CraftedPriceLabel => Pick("Крафт:", "Crafted:");
     public static string DropsLabel => Pick("Добыча:", "Source:");
+    public static string WorldLootOrMerchants => Pick("Сундуки мира / Торговцы (случайный лут)", "World Chests / Merchants (random loot)");
     public static string GoToItemButton(string name) => Pick($"К предм.: {name}", $"Go to: {name}");
 
     public static string HowToCraftHeader(int count) => Pick(
