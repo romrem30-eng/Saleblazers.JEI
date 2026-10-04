@@ -14,7 +14,22 @@ An in-game item catalog, recipe lookup, station browser, and research guide for 
 
 Saleblazers features hundreds of items, multi-tier crafting stations, and an extensive research tree. Without an integrated recipe viewer, tracking dependencies, required crafting benches, and research prerequisites often requires tedious manual guesswork.
 
-Saleblazers JEI parses the internal runtime databases (`HRItemDatabase`, `HRCraftingDatabase`, `HRSkillTree`) dynamically at game launch and provides a comprehensive, responsive in-game overlay.
+Saleblazers JEI parses the internal runtime databases (`HRItemDatabase`, `HRCraftingDatabase`, `HRSkillTree`, and drop tables) dynamically at game launch and provides a comprehensive, responsive in-game overlay.
+
+> [!NOTE]
+> ### Scope & Focus Disclaimer
+> **What JEI Covers:**
+> - **Crafting & Workstations:** Full crafting recipes, workstation dependencies, required tools, craft timers, and nested materials.
+> - **Culinary System:** Dynamic dish mechanics, cooking vessels, satiation, hydration values, and food affixes/potencies.
+> - **Attribute & Buff Codex:** Value scalings, trigger mechanics (on-hit, on-block, on-damage), durations, gear targets, and granting meals.
+> - **World Drops & Resource Tables:** Drop percentage chances and quantity ranges from wildlife, fish (angling), resource nodes (ores, trees, crops), enemy factions, and bosses.
+> - **Research Trees:** Required research benches, tree branch paths, costs, and unlock catalyst items.
+>
+> **What JEI Does Not Cover (Out of Scope):**
+> - **Quests & Story Walkthroughs:** JEI is an item and recipe encyclopedia, not a quest guide or dialogue tracker.
+> - **Map GPS & World Spawns:** It does not provide radar/GPS map pins for wandering NPCs, specific shopkeeper stalls, or buried treasure chests.
+> - **Procedural Merchant Stock:** Wandering trader inventories and dynamic event rolls are generated procedurally by the game world at runtime.
+> - **Multiplayer Client Item Spawning:** The optional item spawner (TMI) functions exclusively for the **lobby host** due to the game's server-authoritative multiplayer architecture. Catalog browsing, recipe lookups, attributes, and drop tables work 100% client-side for all players.
 
 ---
 
