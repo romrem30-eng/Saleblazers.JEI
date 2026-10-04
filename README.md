@@ -20,13 +20,16 @@ Saleblazers JEI parses the internal runtime databases (`HRItemDatabase`, `HRCraf
 
 ## Features
 
-- **Item & Recipe Catalog**: Searchable, paginated grid displaying all items registered in the game database.
+- **Item & Recipe Catalog**: Searchable, paginated grid displaying all items registered in the game database with fast category filters (**Weapons**, **Armor**, **Food**, **Materials**, **Building**, **Workstations**, **Consumables**).
 - **Bi-Directional Recipe Navigation**:
   - **Recipes (`R`)**: Inspect how to craft the selected item, including workstation type, craft duration, and ingredient quantities.
   - **Usages (`U`)**: Inspect all recipes where the selected item is used as an ingredient, or all items crafted by a selected workbench.
+- **Dynamic Culinary Simulation**: Decodes Saleblazers' internal cooking system, showing required cooking vessels, satiation, hydration values, and food affixes/potencies.
+- **Comprehensive Attribute & Buff Codex**: Dedicated Attributes tab featuring 200+ gameplay attributes with value ranges, triggers (on-block, on-hit, on-crit), durations, equipment compatibility, and granting meals.
+- **World & Entity Drop Tables**: Integrated drops from game databases covering fish (angling), wildlife, bosses (Bellstalker, Zena, Boar Leader, Sifu, Karrax), enemy factions, mining veins, timber, and crops with exact percentage chances and quantities.
 - **Interactive Workstation Links**: Clicking a crafting station badge in any recipe immediately redirects the catalog to that station, showing everything craftable on it.
 - **Interactive Ingredient Links**: Clicking any ingredient or recipe result jumps directly to its catalog entry.
-- **Research & Skill Tree Breakdown**: Displays the exact skill tree node name, research points/cash cost, parent node requirements, and unlock criteria (crafting, selling, quest, combat, or outpost objectives).
+- **Research & Skill Tree Breakdown**: Displays the exact skill tree node name, research table requirements, prerequisite items (with jump button), and unlock criteria.
 - **Dual Spawner (TMI)**: Dedicated `SPAWN x1` and `SPAWN x10` batch spawn buttons (host only; can be toggled via configuration).
 - **Inventory Price & Recipe Tooltip**: Hovering over inventory slots displays the item's base sell value, crafted value, and recipe counts.
 - **Live Bilingual Localization (RU / EN)**:
