@@ -1,194 +1,134 @@
 # Saleblazers JEI (Just Enough Items)
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/romrem30-eng/Saleblazers.JEI/releases)
-[![Status](https://img.shields.io/badge/status-stable-success.svg)](https://github.com/romrem30-eng/Saleblazers.JEI)
-[![Target](https://img.shields.io/badge/game-Saleblazers%20(IL2CPP)-informational.svg)](https://store.steampowered.com/app/1416960/Saleblazers/)
-[![Framework](https://img.shields.io/badge/runtime-BepInEx%206%20IL2CPP-purple.svg)](https://github.com/BepInEx/BepInEx)
+[![Game](https://img.shields.io/badge/game-Saleblazers-informational.svg)](https://store.steampowered.com/app/1416960/Saleblazers/)
+[![Mod Loader](https://img.shields.io/badge/loader-BepInEx%206%20IL2CPP-purple.svg)](https://github.com/BepInEx/BepInEx)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-An in-game item catalog, recipe lookup, station browser, and research guide for Saleblazers, inspired by Just Enough Items (JEI). Built natively for BepInEx 6 Unity IL2CPP.
+Saleblazers has hundreds of items, dozens of workbenches, cooking pots, and a massive research tree. Having to constantly Alt-Tab to an incomplete wiki just to see what workbench crafts an item or what ingredients you need gets old fast.
+
+This mod adds an in-game recipe browser and item catalog directly into Saleblazers, inspired by Minecraft's Just Enough Items (JEI). It reads the game's actual internal databases on launch, so all recipes, stations, and stats are 100% accurate to your game version.
 
 ---
 
-## Overview
+## What It Does
 
-Saleblazers features hundreds of items, multi-tier crafting stations, and an extensive research tree. Without an integrated recipe viewer, tracking dependencies, required crafting benches, and research prerequisites often requires tedious manual guesswork.
-
-Saleblazers JEI parses the internal runtime databases (`HRItemDatabase`, `HRCraftingDatabase`, `HRSkillTree`, and drop tables) dynamically at game launch and provides a comprehensive, responsive in-game overlay.
-
-> [!NOTE]
-> ### Scope & Focus Disclaimer
-> **What JEI Covers:**
-> - **Crafting & Workstations:** Full crafting recipes, workstation dependencies, required tools, craft timers, and nested materials.
-> - **Culinary System:** Dynamic dish mechanics, cooking vessels, satiation, hydration values, and food affixes/potencies.
-> - **Attribute & Buff Codex:** Value scalings, trigger mechanics (on-hit, on-block, on-damage), durations, gear targets, and granting meals.
-> - **World Drops & Resource Tables:** Drop percentage chances and quantity ranges from wildlife, fish (angling), resource nodes (ores, trees, crops), enemy factions, and bosses.
-> - **Research Trees:** Required research benches, tree branch paths, costs, and unlock catalyst items.
->
-> **What JEI Does Not Cover (Out of Scope):**
-> - **Quests & Story Walkthroughs:** JEI is an item and recipe encyclopedia, not a quest guide or dialogue tracker.
-> - **Map GPS & World Spawns:** It does not provide radar/GPS map pins for wandering NPCs, specific shopkeeper stalls, or buried treasure chests.
-> - **Procedural Merchant Stock:** Wandering trader inventories and dynamic event rolls are generated procedurally by the game world at runtime.
-> - **Multiplayer Client Item Spawning:** The optional item spawner (TMI) functions exclusively for the **lobby host** due to the game's server-authoritative multiplayer architecture. Catalog browsing, recipe lookups, attributes, and drop tables work 100% client-side for all players.
+- **In-Game Item & Recipe Search:** Fast, searchable grid of every item in the game with category filters (**Weapons**, **Armor**, **Food**, **Materials**, **Building**, **Workstations**, **Consumables**).
+- **Recipes (`R`) & Usages (`U`):** Hover over any item in the catalog or inventory and press `R` to see how to craft it, or `U` to see what recipes it's used in.
+- **Clickable Workstations:** Click any workbench badge in a recipe card to instantly see everything that can be crafted at that station.
+- **Clickable Ingredients:** Click any ingredient or product in a recipe to jump straight to its catalog entry.
+- **Cooking & Food Mechanics:** Shows cooking pot requirements, satiation, hydration, and bonus stat buffs for meals.
+- **Drop Tables:** Shows drop rates and amounts for bosses (Bellstalker, Zena, Boar Leader, Sifu, Karrax), fishing, enemy factions, mining, and harvesting.
+- **Research & Skill Tree Viewer:** See required research tables, prerequisite items, and unlock conditions without running back to your base.
+- **Bilingual (English / Russian):** Includes an on-the-fly language toggle (`Lang: RU/EN`) in the top bar. Search works seamlessly in both English and Russian.
+- **Optional Spawner (Host Only):** If you're the lobby host, you can optionally spawn items for testing. Can be completely disabled in the config file.
+- **Smooth Cursor Handling:** Automatically unlocks mouse look when opening the catalog and restores camera control when closed.
 
 ---
 
-## Features
+## Controls
 
-- **Item & Recipe Catalog**: Searchable, paginated grid displaying all items registered in the game database with fast category filters (**Weapons**, **Armor**, **Food**, **Materials**, **Building**, **Workstations**, **Consumables**).
-- **Bi-Directional Recipe Navigation**:
-  - **Recipes (`R`)**: Inspect how to craft the selected item, including workstation type, craft duration, and ingredient quantities.
-  - **Usages (`U`)**: Inspect all recipes where the selected item is used as an ingredient, or all items crafted by a selected workbench.
-- **Dynamic Culinary Simulation**: Decodes Saleblazers' internal cooking system, showing required cooking vessels, satiation, hydration values, and food affixes/potencies.
-- **Comprehensive Attribute & Buff Codex**: Dedicated Attributes tab featuring 200+ gameplay attributes with value ranges, triggers (on-block, on-hit, on-crit), durations, equipment compatibility, and granting meals.
-- **World & Entity Drop Tables**: Integrated drops from game databases covering fish (angling), wildlife, bosses (Bellstalker, Zena, Boar Leader, Sifu, Karrax), enemy factions, mining veins, timber, and crops with exact percentage chances and quantities.
-- **Interactive Workstation Links**: Clicking a crafting station badge in any recipe immediately redirects the catalog to that station, showing everything craftable on it.
-- **Interactive Ingredient Links**: Clicking any ingredient or recipe result jumps directly to its catalog entry.
-- **Research & Skill Tree Breakdown**: Displays the exact skill tree node name, research table requirements, prerequisite items (with jump button), and unlock criteria.
-- **Dual Spawner (TMI)**: Dedicated `SPAWN x1` and `SPAWN x10` batch spawn buttons (host only; can be toggled via configuration).
-- **Inventory Price & Recipe Tooltip**: Hovering over inventory slots displays the item's base sell value, crafted value, and recipe counts.
-- **Live Bilingual Localization (RU / EN)**:
-  - Toggle between English and Russian on the fly via the top bar `Lang: RU/EN` button without restarting the game.
-  - Bilingual search index: item searches match both English and localized Russian names simultaneously.
-- **Reliable Cursor Management**: Hardware cursor automatically releases when the interface opens and restores camera control when closed.
-
----
-
-## Default Controls
-
-| Key / Action | Function |
+| Key / Action | What it does |
 |---|---|
-| `J` or `F8` | Open or close the JEI Catalog |
-| `R` (hovering over item) | Open Recipes for the hovered item |
-| `U` (hovering over item) | Open Usages for the hovered item |
-| `Mouse Wheel` (over recipe area) | Scroll through recipe cards |
-| `Mouse Wheel` (over item grid) | Turn catalog pages |
-| `Left Click` on Station name | Jump to that crafting station's recipes |
-| `Left Click` on Ingredient / Result | Jump to that item |
-| `Lang: RU/EN` (top right) | Toggle between English and Russian UI |
+| `J` or `F8` | Open / close the JEI catalog |
+| `R` (hovering over item) | View recipes (how to craft this item) |
+| `U` (hovering over item) | View usages (what this item crafts) |
+| `Mouse Wheel` (over recipe) | Scroll through available recipes |
+| `Mouse Wheel` (over grid) | Flip catalog pages |
+| `Left Click` on station | Jump to that workbench's recipes |
+| `Left Click` on ingredient | Jump directly to that item's page |
+| `Lang: RU/EN` (top right) | Switch between English and Russian |
 | `ESC` | Close the catalog |
 
 ---
 
 ## Installation
 
-### Method 1: Automated Installer (Recommended)
+### Easy Install (Automated)
 
-1. Download the latest release archive (`Saleblazers.JEI-v1.0.0.zip`) from the [Releases](https://github.com/romrem30-eng/Saleblazers.JEI/releases) page.
-2. Extract the archive into any folder.
+1. Grab the latest `Saleblazers.JEI-v1.0.0.zip` from [Releases](https://github.com/romrem30-eng/Saleblazers.JEI/releases).
+2. Extract the zip into any folder.
 3. Run `install.bat`.
-   - The installer automatically detects your Saleblazers directory via Steam libraries.
-   - If BepInEx 6 IL2CPP is not present, it will automatically download and set up BepInEx 6.
-   - It will place `Saleblazers.JEI.dll` into your `BepInEx\plugins\` folder.
-4. Launch the game through Steam.
+   - It will find your Saleblazers installation automatically.
+   - If BepInEx 6 IL2CPP isn't installed yet, it sets it up for you.
+   - Places `Saleblazers.JEI.dll` into your `BepInEx\plugins\` folder.
+4. Launch the game and press `J` or `F8` in-game!
 
-### Method 2: Manual Installation
+### Manual Install
 
 1. Install [BepInEx 6 Unity IL2CPP x64](https://github.com/BepInEx/BepInEx/releases) into your game folder:
    ```
    <SteamLibrary>\steamapps\common\Saleblazers\Default\
    ```
-2. Launch the game once to allow BepInEx to generate folder structures and interop assemblies, then exit the game.
-3. Place `Saleblazers.JEI.dll` into:
+2. Launch the game once so BepInEx can set up its folders, then close the game.
+3. Put `Saleblazers.JEI.dll` into:
    ```
    <SteamLibrary>\steamapps\common\Saleblazers\Default\BepInEx\plugins\
    ```
-4. Start Saleblazers.
+4. Start the game!
 
 ---
 
-## Building from Source
+## Multiplayer Safety
 
-### Prerequisites
-
-- [.NET 6.0 SDK](https://dotnet.microsoft.com/download/dotnet/6.0) or newer.
-- An installed copy of **Saleblazers** with **BepInEx 6 IL2CPP** installed and run at least once (to produce the interop assemblies in `BepInEx/interop/`).
-
-### Build Steps
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/romrem30-eng/Saleblazers.JEI.git
-   cd Saleblazers.JEI
-   ```
-
-2. Verify or update the game path in `Saleblazers.JEI.csproj` if your Steam library is located on a different drive:
-   ```xml
-   <GameDir>C:\Program Files (x86)\Steam\steamapps\common\Saleblazers\Default</GameDir>
-   ```
-
-3. Build the project:
-   ```bash
-   dotnet build -c Release
-   ```
-
-4. The compiled assembly `Saleblazers.JEI.dll` will be output to:
-   - `bin\Release\Saleblazers.JEI.dll`
-   - It will also automatically copy to your `BepInEx\plugins\` folder if the target path exists.
+- **100% Safe for Co-op:** The recipe browser, search, drop tables, and research tree work completely client-side. Other players in your lobby do not need the mod installed for you to use it.
+- **Spawning is Host-Only:** The optional spawn buttons only work if you are the lobby host. Connected clients cannot spawn items.
 
 ---
 
 ## Configuration
 
-The configuration file is generated upon first launch at:
+The config file is created automatically on first launch at:
 ```
 <GameDir>\BepInEx\config\com.saleblazers.jei.cfg
 ```
 
-Configurable options:
+You can tweak options like:
 
 ```ini
 [JEI]
 ## Enable the JEI catalog overlay.
-# Setting type: Boolean
-# Default value: true
 EnableJEI = true
 
-## Enable the TMI item spawner in the detail panel (host only).
-# Setting type: Boolean
-# Default value: true
+## Enable the item spawner buttons (host only). Set to false for pure recipe lookup.
 EnableTMI = true
 
-## Show base and crafted value tooltip over inventory slots.
-# Setting type: Boolean
-# Default value: true
+## Show sell value and recipe count in inventory tooltips.
 EnablePriceTooltip = true
 
-## Default batch amount for the second TMI spawn button.
-# Setting type: Int32
-# Default value: 10
+## Default batch amount for the second spawn button.
 SpawnCount = 10
 
 ## Active UI Language (RU or EN).
-# Setting type: String
-# Default value: RU
 Language = RU
 
 ## Catalog grid columns (4 to 12).
-# Setting type: Int32
-# Default value: 8
 GridCols = 8
 
 ## Catalog grid rows (3 to 8).
-# Setting type: Int32
-# Default value: 6
 GridRows = 6
 ```
 
 ---
 
-## Technical Architecture
+## Building from Source
 
-Saleblazers is built on Unity IL2CPP with Mirror networking and Rewired input. Key architectural components of this mod include:
+If you want to compile it yourself:
 
-- `JeiCatalog.cs`: Scans `HRItemDatabase`, `HRCraftingDatabase`, `CraftingTableReferences`, and all loaded `HRSkillTree` / `HRSkillNode` hierarchies. Establishes reverse lookup maps for crafting stations and ingredients.
-- `JeiUI.cs`: Procedural Unity UI canvas rendered on top of the game screen using native TextMeshPro SDF typography and custom raycast handling.
-- `JeiLoc.cs`: Live language provider managing state and localized terminology without reloading assets.
-- `CursorPatch.cs`: Harmony patches and frame synchronizers enforcing proper cursor unlock state in gameplay while preserving main menu stability.
-- `ModHost.cs`: Injected IL2CPP MonoBehaviour ensuring guaranteed frame-rate ticks regardless of scene transitions.
+1. Clone the repo:
+   ```bash
+   git clone https://github.com/romrem30-eng/Saleblazers.JEI.git
+   cd Saleblazers.JEI
+   ```
+2. Make sure you have [.NET 6.0 SDK](https://dotnet.microsoft.com/download/dotnet/6.0) installed and game path in `Saleblazers.JEI.csproj` pointing to your Saleblazers folder.
+3. Run:
+   ```bash
+   dotnet build -c Release
+   ```
+4. Compiled DLL is placed in `bin/Release/Saleblazers.JEI.dll`.
 
 ---
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE). You are free to use, modify, and distribute this software in accordance with the license terms.
+This project is licensed under the [MIT License](LICENSE).
