@@ -69,6 +69,10 @@ Download and install the **[Saleblazers Modding Starter Kit](https://github.com/
    - Copies `Saleblazers.JEI.dll` into `BepInEx\plugins\`.
 4. Launch the game and press `J` or `F8` in-game.
 
+### Uninstallation
+- **Automated:** Run `uninstall.bat` from the extracted folder.
+- **Manual:** Delete `Saleblazers.JEI.dll` from `Saleblazers/Default/BepInEx/plugins/`.
+
 ---
 
 ## Multiplayer Safety

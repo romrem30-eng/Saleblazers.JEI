@@ -93,9 +93,9 @@ $winHttp = Join-Path $gamePath 'winhttp.dll'
 $bepCore = Join-Path $gamePath 'BepInEx\core\BepInEx.Core.dll'
 
 if (-not (Test-Path $winHttp) -or -not (Test-Path $bepCore)) {
-    Write-Host "BepInEx 6 IL2CPP is not detected. Downloading BepInEx 6..." -ForegroundColor Yellow
-    $bepUrl = "https://github.com/BepInEx/BepInEx/releases/download/v6.0.0-pre.2/BepInEx-Unity.IL2CPP-win-x64-6.0.0-pre.2.zip"
-    $tempZip = Join-Path $env:TEMP "BepInEx_UnityIL2CPP_x64.zip"
+    Write-Host "BepInEx 6 IL2CPP is not detected. Downloading pre-configured Modding Starter Kit..." -ForegroundColor Yellow
+    $bepUrl = "https://github.com/romrem30-eng/Saleblazers.ModdingStarterKit/releases/download/v1.0.0/Saleblazers.BepInExPack-v6.0.0.zip"
+    $tempZip = Join-Path $env:TEMP "Saleblazers_BepInExPack_v6.0.0.zip"
 
     try {
         [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
