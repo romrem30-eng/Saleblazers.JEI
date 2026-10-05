@@ -5,11 +5,6 @@ using UnityEngine;
 
 namespace Saleblazers.ModBase;
 
-/// <summary>
-/// Prevents Saleblazers from hiding/locking the mouse cursor or rotating the camera / swinging weapons
-/// while JEI is open in gameplay.
-/// Never touches the cursor in the Main Menu.
-/// </summary>
 internal static class CursorPatch
 {
     private static ManualLogSource _log;
@@ -61,7 +56,6 @@ internal static class CursorPatch
         }
     }
 
-    /// <summary>Synchronizes the game's internal cursor manager when JEI opens or closes in gameplay.</summary>
     public static void SyncCursorState()
     {
         try

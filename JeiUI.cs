@@ -10,14 +10,6 @@ using UnityEngine.UI;
 
 namespace Saleblazers.ModBase;
 
-/// <summary>
-/// JEI / Merchant Toolkit UI:
-/// - Items mode: Catalog grid with search, category filters (Weapons, Armor, Food, Materials, Building, Stations, Consumables),
-///   interactive Recipe/Usage detail tabs with culinary stats (vessel, satiation, hydration, affixes), and dual TMI spawner.
-/// - Attributes mode: Attribute codex browsing all 200+ game affixes/perks by category (Combat, Defense, Food, Utility)
-///   with detailed effect descriptions and interactive links to meals/items.
-/// - Live bilingual RU/EN language switcher.
-/// </summary>
 internal static class JeiUI
 {
     private static BepInEx.Logging.ManualLogSource _log;
@@ -46,7 +38,6 @@ internal static class JeiUI
     private static TMP_Text _pageText;
     private static TMP_Text _closeBtnText;
 
-    // Detail panel
     private static RectTransform _detail;
     private static Image _detailIcon;
     private static Image _detailIconBg;
@@ -324,7 +315,6 @@ internal static class JeiUI
         if (_closeBtnText != null) _closeBtnText.text = JeiLoc.CloseButton;
     }
 
-    // ---------- hover & tooltip ----------
     private static void RefreshHover()
     {
         _hoveredItemId = 0;
@@ -411,7 +401,6 @@ internal static class JeiUI
         return sp;
     }
 
-    // ---------- input handling ----------
     private static void HandleClicks()
     {
         bool clicked = false;
@@ -442,7 +431,6 @@ internal static class JeiUI
 
         if (!clicked) return;
 
-        // Detail panel interactive elements (links, buttons)
         for (int i = 0; i < _detailClickables.Count; i++)
         {
             var dc = _detailClickables[i];
@@ -455,7 +443,6 @@ internal static class JeiUI
             }
         }
 
-        // Static & grid buttons
         for (int i = 0; i < _clickables.Count; i++)
         {
             var c = _clickables[i];
@@ -507,7 +494,6 @@ internal static class JeiUI
         if (t != _lastSearch) { _lastSearch = t; _page = 0; RefreshGrid(); }
     }
 
-    // ---------- build ----------
     private static void Build()
     {
         _font = JeiCatalog.Font ?? UiKit.LoadFont();
@@ -533,22 +519,18 @@ internal static class JeiUI
         _canvas = UiKit.MakeCanvas("JeiCatalog");
         _log?.LogInfo($"[JEI] Canvas built (renderMode={_canvas.renderMode}, sortingOrder={_canvas.sortingOrder})");
 
-        // Dim background
         UiKit.MakeImage(_canvas.transform, "Dim", new Color(0f, 0f, 0f, 0.65f),
             Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
 
-        // Main panel (1260 x 730)
         _panel = UiKit.MakeImage(_canvas.transform, "Panel", new Color(0.08f, 0.09f, 0.12f, 0.98f),
             new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1260, 730)).rectTransform;
 
-        // Header bar (height 44)
         UiKit.MakeImage(_panel, "HeaderBg", new Color(0.13f, 0.15f, 0.22f, 1f),
             new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0, 44));
 
         _titleText = UiKit.MakeText(_panel, "Title", JeiLoc.HeaderTitle, 18, new Color(0.96f, 0.85f, 0.45f), TextAnchor.MiddleLeft,
             new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1), new Vector2(20, -5), new Vector2(400, 34), _font);
 
-        // Mode switch buttons: [ ITEMS ] and [ ATTRIBUTES ]
         var modeItemsBtn = UiKit.MakeClickable(_panel, "ModeItems", JeiLoc.ModeCatalog, () => SwitchMode(0),
             new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1), new Vector2(440, -6), new Vector2(120, 32), _font, _clickables);
         _modeItemsBtnImg = modeItemsBtn.GetComponent<Image>();
@@ -563,14 +545,12 @@ internal static class JeiUI
         _modeAttrsBtnText = modeAttrsBtn.GetChild(0)?.GetComponent<TMP_Text>();
         if (_modeAttrsBtnText != null) _modeAttrsBtnText.fontSize = 12;
 
-        // Language toggle button in top right
         var langBtn = UiKit.MakeClickable(_panel, "LangSwitch", JeiLoc.LangButton, OnToggleLanguageClicked,
             new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1), new Vector2(-14, -6), new Vector2(115, 32), _font, _clickables);
         langBtn.GetComponent<Image>().color = new Color(0.22f, 0.36f, 0.54f, 0.96f);
         _langBtnText = langBtn.GetChild(0)?.GetComponent<TMP_Text>();
         if (_langBtnText != null) _langBtnText.fontSize = 13;
 
-        // Search input row (y = -52, height = 28)
         _searchLblText = UiKit.MakeText(_panel, "SearchLbl", JeiLoc.SearchLabel, 14, new Color(0.85f, 0.88f, 0.95f), TextAnchor.MiddleLeft,
             new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1), new Vector2(20, -52), new Vector2(65, 28), _font);
 
@@ -590,11 +570,9 @@ internal static class JeiUI
         _countText = UiKit.MakeText(_panel, "CountTxt", "", 13, new Color(0.68f, 0.74f, 0.84f), TextAnchor.MiddleRight,
             new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1), new Vector2(470, -52), new Vector2(330, 28), _font);
 
-        // Filter bar container (y = -84, height = 26, width = 790)
         _filterBar = UiKit.MakeRect(_panel, "FilterBar",
             new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1), new Vector2(20, -84), new Vector2(790, 26));
 
-        // Grid container (y = -116, height = 530, width = 790)
         _gridContainer = UiKit.MakeRect(_panel, "Grid",
             new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1), new Vector2(20, -116), new Vector2(790, 530));
 
@@ -624,13 +602,11 @@ internal static class JeiUI
             _dynamic.Add(cellRt.gameObject);
         }
 
-        // Detail panel (right side: 420 x 604)
         _detail = UiKit.MakeRect(_panel, "Detail",
             new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1), new Vector2(820, -52), new Vector2(420, 604));
         UiKit.MakeImage(_detail, "DetailBg", new Color(0.11f, 0.12f, 0.16f, 0.98f),
             Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
 
-        // Header card inside detail panel
         UiKit.MakeImage(_detail, "DetailHeaderBg", new Color(0.15f, 0.17f, 0.23f, 1f),
             new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1f), new Vector2(0, 0), new Vector2(0, 80));
 
@@ -645,12 +621,10 @@ internal static class JeiUI
         _detailHeaderText = UiKit.MakeText(_detail, "DetailHeaderTxt", JeiLoc.SelectItemPrompt, 14, Color.white, TextAnchor.MiddleLeft,
             new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1), new Vector2(84, -7), new Vector2(324, 66), _font);
 
-        // Meta / Research / Drops block (y = -84, height = 74)
         _detailMetaText = UiKit.MakeText(_detail, "DetailMetaTxt", "", 12, new Color(0.90f, 0.92f, 0.96f), TextAnchor.UpperLeft,
             new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1), new Vector2(12, -84), new Vector2(396, 74), _font);
         _detailMetaText.overflowMode = TextOverflowModes.Truncate;
 
-        // Recipe section header bar + scroll buttons (y = -162, height = 28)
         UiKit.MakeImage(_detail, "RecipeBarBg", new Color(0.14f, 0.16f, 0.22f, 0.96f),
             new Vector2(0, 1), new Vector2(1, 1), new Vector2(0.5f, 1f), new Vector2(0, -162), new Vector2(-16, 28));
 
@@ -668,11 +642,9 @@ internal static class JeiUI
             new Vector2(1, 1), new Vector2(1, 1), new Vector2(1, 1), new Vector2(-12, -164), new Vector2(28, 24), _font, _clickables);
         rNext.GetComponent<Image>().color = new Color(0.22f, 0.26f, 0.35f, 0.96f);
 
-        // Interactive scrollable cards container (y = -194, height = 314)
         _recipeListContainer = UiKit.MakeRect(_detail, "RecipeList",
             new Vector2(0, 1), new Vector2(0, 1), new Vector2(0, 1), new Vector2(12, -194), new Vector2(396, 314));
 
-        // Two Spawn (TMI) buttons
         int batchCount = Mathf.Max(2, _spawnCount.Value);
         var spawn1 = UiKit.MakeClickable(_detail, "Spawn1", JeiLoc.SpawnOne, () => SpawnSelected(1),
             new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0), new Vector2(12, 50), new Vector2(192, 34), _font, _clickables);
@@ -686,7 +658,6 @@ internal static class JeiUI
         _spawnBatchText = spawn10.GetChild(0)?.GetComponent<TMP_Text>();
         _spawn10Obj = spawn10.gameObject;
 
-        // Tabs inside detail panel (RECIPES / USAGES)
         var tabR = UiKit.MakeClickable(_detail, "TabR", JeiLoc.TabRecipes(), () => { _tabRecipes = true; _recipeOffset = 0; RefreshDetail(); },
             new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0), new Vector2(12, 10), new Vector2(192, 32), _font, _clickables);
         _tabRImg = tabR.GetComponent<Image>();
@@ -701,7 +672,6 @@ internal static class JeiUI
         if (_tabUTxt != null) _tabUTxt.fontSize = 12;
         _tabUObj = tabU.gameObject;
 
-        // Pagination + close at bottom of _panel
         var prev = UiKit.MakeClickable(_panel, "Prev", "<", () => { _page--; RefreshGrid(); },
             new Vector2(0, 0), new Vector2(0, 0), new Vector2(0, 0), new Vector2(20, 16), new Vector2(56, 34), _font, _clickables);
         prev.GetComponent<Image>().color = new Color(0.20f, 0.24f, 0.32f, 0.96f);
@@ -744,7 +714,6 @@ internal static class JeiUI
 
         if (_mode == 0)
         {
-            // Item category buttons: ALL, WEAPONS, ARMOR, FOOD, MATERIALS, BUILDING, STATIONS, CONSUMABLES
             var filters = new (JeiCategoryFilter filter, string label)[]
             {
                 (JeiCategoryFilter.All, JeiLoc.CatAll),
@@ -790,7 +759,6 @@ internal static class JeiUI
         }
         else
         {
-            // Attribute category buttons: ALL, COMBAT, DEFENSE, FOOD, UTILITY
             var filters = new (string cat, string label)[]
             {
                 ("All", JeiLoc.AttrCatAll),
@@ -846,7 +814,6 @@ internal static class JeiUI
         _tipCanvas.gameObject.SetActive(false);
     }
 
-    // ---------- refresh ----------
     private static void Refresh()
     {
         JeiCatalog.EnsureScanned();
@@ -863,7 +830,6 @@ internal static class JeiUI
 
         if (_mode == 0)
         {
-            // Items grid
             _filteredItems.Clear();
             foreach (var e in JeiCatalog.Items.Values)
             {
@@ -932,7 +898,6 @@ internal static class JeiUI
         }
         else
         {
-            // Attributes grid
             _filteredAttrs.Clear();
             foreach (var a in JeiCatalog.Attributes)
             {
@@ -1099,7 +1064,6 @@ internal static class JeiUI
             }
         }
 
-        // Header summary next to icon
         var hsb = new System.Text.StringBuilder();
         hsb.Append("<b><size=16><color=#F5D76E>").Append(e.DisplayName).Append("</color></size></b>  <color=#7E889B>#").Append(e.ItemID).Append("</color>\n");
         hsb.Append("<color=#B0B8C8>").Append(JeiLoc.BasePriceLabel).Append("</color> <color=#7BE082>$").Append(e.BaseValue.ToString("F0")).Append("</color>");
@@ -1110,7 +1074,6 @@ internal static class JeiUI
             hsb.Append("<size=12><color=#8C96A8>").Append(string.Join(" • ", e.Categories)).Append("</color></size>");
         _detailHeaderText.text = hsb.ToString();
 
-        // Meta block: Drops + Research/Unlock requirements
         var msb = new System.Text.StringBuilder();
         var drops = e.GetLocalizedWorldDrops();
         if (drops.Count > 0)
@@ -1211,7 +1174,6 @@ internal static class JeiUI
             }
         }
 
-        // Header summary next to icon
         var hsb = new System.Text.StringBuilder();
         string colHex = ColorUtility.ToHtmlStringRGB(a.TitleColor.a > 0.1f ? a.TitleColor : Color.white);
         hsb.Append("<b><size=16><color=#").Append(colHex).Append(">").Append(a.Title).Append("</color></size></b>\n");
@@ -1224,7 +1186,6 @@ internal static class JeiUI
             hsb.Append("  |  <color=#B0B8C8>").Append(JeiLoc.AttrRarityLabel).Append("</color> <color=#F5D76E>").Append(a.MinRarity).Append("</color>");
         _detailHeaderText.text = hsb.ToString();
 
-        // Meta block: Full effect description + numeric ranges + triggers + duration + sources
         _detailMetaText.fontSize = 11;
         var msb = new System.Text.StringBuilder();
         msb.Append("<color=#8FD694><b>").Append(JeiLoc.AttrEffectHeader).Append(":</b></color> <color=#FFFFFF>").Append(a.Description).Append("</color>\n");
@@ -1252,7 +1213,6 @@ internal static class JeiUI
         }
         _detailMetaText.text = msb.ToString();
 
-        // If no associated meals, show dedicated mechanics and acquisition panel
         if (a.AssociatedFoodItemIDs.Count == 0)
         {
             _recipeSectionTitle.text = JeiLoc.AttrMechanicsHeader;
@@ -1285,7 +1245,6 @@ internal static class JeiUI
             return;
         }
 
-        // List of associated meals / food dishes granting this attribute
         _recipeSectionTitle.text = $"{JeiLoc.AttrFoodHeader} ({a.AssociatedFoodItemIDs.Count})";
 
         _recipeOffset = Mathf.Clamp(_recipeOffset, 0, a.AssociatedFoodItemIDs.Count - 1);
@@ -1393,7 +1352,6 @@ internal static class JeiUI
         string resultName = resItem != null ? resItem.DisplayName : ("#" + r.ResultItemID);
         int count = Mathf.Max(1, r.NumToCraft);
 
-        // 1) Result header
         string titleStr = count > 1
             ? $"• <b><color=#F5D76E>{resultName}</color></b> <color=#7BE082>x{count}</color>  <color=#7E889B>(#{r.ResultItemID})</color>"
             : $"• <b><color=#F5D76E>{resultName}</color></b>  <color=#7E889B>(#{r.ResultItemID})</color>";
@@ -1403,7 +1361,6 @@ internal static class JeiUI
         int targetResId = r.ResultItemID;
         _detailClickables.Add(new ValueTuple<RectTransform, Action>(resTxt.rectTransform, () => SelectItem(targetResId, true)));
 
-        // 2) Station line
         string station = JeiCatalog.ResolveStationName(r.StationFlag);
         int stationItemId = r.StationItemID > 0 ? r.StationItemID : JeiCatalog.ResolveStationItemId(r.StationFlag);
         string stnFormatted = stationItemId > 0
@@ -1425,7 +1382,6 @@ internal static class JeiUI
 
         float rowY = 41f;
 
-        // 3) Culinary stats line (satiation, hydration, regen, affixes)
         if (hasCookLine)
         {
             var csb = new System.Text.StringBuilder("   ");
@@ -1453,7 +1409,6 @@ internal static class JeiUI
             rowY += 18f;
         }
 
-        // 4) Research unlock line (when viewing usages)
         if (hasUnlockLine && resItem?.Unlock != null)
         {
             var u = resItem.Unlock;
@@ -1465,7 +1420,6 @@ internal static class JeiUI
             rowY += 18f;
         }
 
-        // 5) Ingredient rows
         if (r.Ingredients.Count == 0)
         {
             UiKit.MakeText(cardRt, "FreeIng", JeiLoc.NoIngredients, 12, Color.white, TextAnchor.MiddleLeft,
@@ -1491,7 +1445,6 @@ internal static class JeiUI
         }
     }
 
-    // ---------- spawn (TMI) ----------
     private static void SpawnSelected(int count)
     {
         if (!_enableTmi.Value) { ModService.NotifyWarn(JeiLoc.NotifyTmiDisabled); return; }
@@ -1554,7 +1507,6 @@ internal static class JeiUI
 
                 if (weapon == null) break;
 
-                // Ensure physical collision between player character and held weapon colliders is ignored
                 try
                 {
                     var pColliders = pawn.GetComponentsInChildren<Collider>(true);

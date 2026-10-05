@@ -8,7 +8,6 @@ using UnityEngine.UI;
 
 namespace Saleblazers.ModBase;
 
-/// <summary>Reusable UGUI builders (Canvas, Image, Text, clickable) shared by mod panels.</summary>
 internal static class UiKit
 {
     private static readonly Dictionary<KeyCode, bool> _keyPrev = new();
@@ -19,11 +18,6 @@ internal static class UiKit
 
     public static void SetLogger(ManualLogSource log) => _log = log;
 
-    /// <summary>
-    /// Robust "pressed this frame" detector. Uses HOLD state (GetKey) with manual
-    /// rising-edge detection, so it is immune to Rewired's frame-phase timing.
-    /// Falls back to legacy UnityEngine.Input if Rewired reports nothing.
-    /// </summary>
     public static bool KeyPressed(KeyCode key)
     {
         bool held = false;
@@ -54,7 +48,6 @@ internal static class UiKit
         return true;
     }
 
-    /// <summary>1x1 white sprite so Unity 6 UGUI Image always has a valid source texture.</summary>
     public static Sprite WhiteSprite
     {
         get
@@ -73,13 +66,11 @@ internal static class UiKit
         }
     }
 
-    /// <summary>Finds an active UGUI TMP_FontAsset from the loaded game UI, with fallbacks.</summary>
     public static TMP_FontAsset LoadFont()
     {
         if (_cachedFont != null && _cachedFont.material != null)
             return _cachedFont;
 
-        // 1) Prefer a font actively used by a live TextMeshProUGUI in the scene
         try
         {
             var texts = UnityEngine.Object.FindObjectsOfType<TextMeshProUGUI>(true);
@@ -91,7 +82,6 @@ internal static class UiKit
                         t.font.name != null && !t.font.name.Contains("Emoji"))
                     {
                         _cachedFont = t.font;
-                        _log?.LogInfo($"[UiKit] Loaded TMP font from scene TextMeshProUGUI: '{_cachedFont.name}'");
                         return _cachedFont;
                     }
                 }
@@ -99,20 +89,17 @@ internal static class UiKit
         }
         catch (Exception) { }
 
-        // 2) TMP_Settings.defaultFontAsset
         try
         {
             var f = TMP_Settings.defaultFontAsset;
             if (f != null && f.material != null)
             {
                 _cachedFont = f;
-                _log?.LogInfo($"[UiKit] Loaded TMP font from TMP_Settings.defaultFontAsset: '{_cachedFont.name}'");
                 return _cachedFont;
             }
         }
         catch (Exception) { }
 
-        // 3) All loaded TMP_FontAsset resources
         try
         {
             var fonts = Resources.FindObjectsOfTypeAll<TMP_FontAsset>();
@@ -123,21 +110,18 @@ internal static class UiKit
                     if (font != null && font.material != null && font.name != null && !font.name.Contains("Emoji"))
                     {
                         _cachedFont = font;
-                        _log?.LogInfo($"[UiKit] Loaded TMP font from Resources: '{_cachedFont.name}'");
                         return _cachedFont;
                     }
                 }
                 if (fonts[0] != null && fonts[0].material != null)
                 {
                     _cachedFont = fonts[0];
-                    _log?.LogInfo($"[UiKit] Loaded fallback TMP font from Resources[0]: '{_cachedFont.name}'");
                     return _cachedFont;
                 }
             }
         }
         catch (Exception) { }
 
-        // 4) Unity 6 LegacyRuntime.ttf / Arial.ttf builtin font
         try
         {
             var builtinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
@@ -148,14 +132,12 @@ internal static class UiKit
                 if (created != null)
                 {
                     _cachedFont = created;
-                    _log?.LogInfo($"[UiKit] Created TMP font from builtin font '{builtinFont.name}'");
                     return _cachedFont;
                 }
             }
         }
         catch (Exception) { }
 
-        // 5) OS dynamic font
         try
         {
             var osFont = Font.CreateDynamicFontFromOSFont("Arial", 16);
@@ -165,7 +147,6 @@ internal static class UiKit
                 if (created != null)
                 {
                     _cachedFont = created;
-                    _log?.LogInfo("[UiKit] Created TMP font from OS Arial");
                     return _cachedFont;
                 }
             }
@@ -178,7 +159,7 @@ internal static class UiKit
     public static Canvas MakeCanvas(string name)
     {
         var root = new GameObject(name);
-        root.layer = 5; // UI layer
+        root.layer = 5;
         UnityEngine.Object.DontDestroyOnLoad(root);
 
         var canvas = root.AddComponent<Canvas>();
@@ -202,7 +183,7 @@ internal static class UiKit
     public static RectTransform MakeRect(Transform parent, string name, Vector2 aMin, Vector2 aMax, Vector2 pivot, Vector2 pos, Vector2 size)
     {
         var go = new GameObject(name);
-        go.layer = 5; // UI layer
+        go.layer = 5;
         var rt = go.AddComponent<RectTransform>();
         rt.SetParent(parent, false);
         rt.localScale = Vector3.one;
@@ -218,7 +199,6 @@ internal static class UiKit
 
     public static RectTransform MakeRect(Transform parent, string name, Vector2 aMin, Vector2 aMax, Vector2 pos, Vector2 size)
     {
-        // Smart default pivot matching anchor when aMin == aMax, else center (0.5, 0.5)
         Vector2 pivot = (aMin == aMax) ? aMin : new Vector2(0.5f, 0.5f);
         return MakeRect(parent, name, aMin, aMax, pivot, pos, size);
     }

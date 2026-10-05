@@ -25,7 +25,6 @@ public class Plugin : BasePlugin
         JeiCatalog.Init(_logger);
         JeiUI.Init(Config, _logger);
 
-        // Register custom MonoBehaviour in IL2CPP runtime for guaranteed per-frame ticks
         try
         {
             ClassInjector.RegisterTypeInIl2Cpp<ModHost>();

@@ -42,30 +42,32 @@ This mod adds an in-game recipe browser and item catalog directly into Saleblaze
 
 ---
 
+## Requirements
+
+This mod requires **BepInEx 6 IL2CPP** and our pre-configured mod loader environment.
+Download and install the **[Saleblazers Modding Starter Kit](https://github.com/romrem30-eng/Saleblazers.ModdingStarterKit)**:
+- Pre-configured BepInEx 6 IL2CPP build with Doorstop loader and dumped interop assemblies.
+- Built-in In-Game Mod Manager (`Saleblazers.ModMenu`), enabling in-game mod toggles and live `.cfg` configuration editing.
+
+---
+
 ## Installation
 
-### Easy Install (Automated)
+### Recommended Installation
+1. Download `Saleblazers.BepInExPack-v6.0.0.zip` from the [Starter Kit Releases](https://github.com/romrem30-eng/Saleblazers.ModdingStarterKit/releases).
+2. Extract the archive contents into your game directory (`Saleblazers/Default/`).
+3. Download `Saleblazers.JEI.dll` from [JEI Releases](https://github.com/romrem30-eng/Saleblazers.JEI/releases).
+4. Place `Saleblazers.JEI.dll` into `Saleblazers/Default/BepInEx/plugins/`.
+5. Launch the game through Steam. The main menu will show `[Modded]` and a `MODS` button. Press `J` in-game to open JEI!
 
-1. Grab the latest `Saleblazers.JEI-v1.0.0.zip` from [Releases](https://github.com/romrem30-eng/Saleblazers.JEI/releases).
+### Automated Script (if using zip bundle)
+1. Download `Saleblazers.JEI-v1.0.0.zip` from [Releases](https://github.com/romrem30-eng/Saleblazers.JEI/releases).
 2. Extract the zip into any folder.
 3. Run `install.bat`.
-   - It will find your Saleblazers installation automatically.
-   - If BepInEx 6 IL2CPP isn't installed yet, it sets it up for you.
-   - Places `Saleblazers.JEI.dll` into your `BepInEx\plugins\` folder.
-4. Launch the game and press `J` or `F8` in-game!
-
-### Manual Install
-
-1. Install [BepInEx 6 Unity IL2CPP x64](https://github.com/BepInEx/BepInEx/releases) into your game folder:
-   ```
-   <SteamLibrary>\steamapps\common\Saleblazers\Default\
-   ```
-2. Launch the game once so BepInEx can set up its folders, then close the game.
-3. Put `Saleblazers.JEI.dll` into:
-   ```
-   <SteamLibrary>\steamapps\common\Saleblazers\Default\BepInEx\plugins\
-   ```
-4. Start the game!
+   - Locates your Saleblazers installation automatically.
+   - Installs BepInEx 6 IL2CPP if not present.
+   - Copies `Saleblazers.JEI.dll` into `BepInEx\plugins\`.
+4. Launch the game and press `J` or `F8` in-game.
 
 ---
 

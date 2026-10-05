@@ -31,7 +31,6 @@ public class JeiRecipe
     public string StationName;
     public List<KeyValuePair<int, int>> Ingredients = new(); // itemID, amount
 
-    // Culinary / Food extensions
     public bool IsCooking;
     public string VesselType;
     public float SatiatingSeconds;
@@ -80,7 +79,6 @@ public class JeiAttributeEntry
     public Sprite Icon;
     public string Category = "Utility"; // Combat, Defense, Food, Utility
 
-    // Value ranges & mechanics
     public float MinValue;
     public float MaxValue;
     public string ValueRangeText;
@@ -97,7 +95,6 @@ public class JeiAttributeEntry
     private string _sourceNameFallback;
     public string RequirementsText;
 
-    // Associated items: meals, ingredients, weapons/gear
     public List<int> AssociatedFoodItemIDs = new();
     public List<int> AssociatedIngredientItemIDs = new();
     public List<int> AssociatedGearItemIDs = new();
@@ -395,10 +392,6 @@ public class JeiItemEntry
     }
 }
 
-/// <summary>
-/// JEI catalog: scans HRItemDatabase, HRCraftingDatabase, HRSkillTree, HRFoodDatabase, and HRAttributeDatabase.
-/// Builds comprehensive items, culinary recipes, workstation links, research unlock info, and attribute codex.
-/// </summary>
 internal static class JeiCatalog
 {
     private static ManualLogSource _log;
@@ -476,7 +469,6 @@ internal static class JeiCatalog
         _attributes.Clear();
         _attributesById.Clear();
 
-        // 1. Items from HRItemDatabase
         if (itemDb?.ItemArray != null)
         {
             foreach (var it in itemDb.ItemArray)
@@ -504,13 +496,11 @@ internal static class JeiCatalog
             }
         }
 
-        // Localized item names
         foreach (var e in _items.Values)
         {
             e.Name = HRItemDatabase.GetLocalizedItemNameByID(e.ItemID, e.FallbackName);
         }
 
-        // 2. Station ItemIDs from CraftingTableReferences
         if (craftingDb?.CraftingTableReferences != null)
         {
             foreach (var tr in craftingDb.CraftingTableReferences)
@@ -531,7 +521,6 @@ internal static class JeiCatalog
         }
         PopulateFallbackStationIds();
 
-        // 3. Recipes (R) + Usages (U) from HRCraftingDatabase
         if (craftingDb?.CraftableItems != null)
         {
             foreach (var ci in craftingDb.CraftableItems)
@@ -596,13 +585,10 @@ internal static class JeiCatalog
             }
         }
 
-        // 4. Scan Research / Skill Trees
         ScanSkillTrees(craftingDb?.ResearchBenchTreeSO);
 
-        // 5. Scan Item Attributes & Affixes from HRAttributeDatabase & HRAffixRegistry
         ScanAttributeDatabase();
 
-        // 6. Scan Food & Culinary Recipes from HRFoodDatabase
         ScanFoodDatabase();
 
         _scanned = true;
@@ -616,7 +602,6 @@ internal static class JeiCatalog
         {
             HRFoodDatabase.EnsureLoaded();
 
-            // Mark known food ingredients, consumables, and vessels
             if (HRFoodDatabase.IngredientsByItemID != null)
             {
                 foreach (var kv in HRFoodDatabase.IngredientsByItemID)
@@ -625,7 +610,6 @@ internal static class JeiCatalog
                     if (_items.TryGetValue(itemId, out var entry))
                         entry.IsFood = true;
 
-                    // Also link ingredient's AffixID to attribute entries
                     var ingData = kv.Value;
                     if (ingData != null && ingData.AffixID > 0)
                     {
@@ -650,7 +634,6 @@ internal static class JeiCatalog
                 }
             }
 
-            // Map ingredient NameKey -> ItemID
             var nameKeyToItemId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             if (HRFoodDatabase.IngredientsByItemID != null)
             {
@@ -665,7 +648,6 @@ internal static class JeiCatalog
                 }
             }
 
-            // Process all Signature Recipes & Family Recipes
             var recipesToProcess = new List<HRFoodSignatureRecipeData>();
             if (HRFoodDatabase.SignatureRecipes != null)
             {
@@ -733,7 +715,6 @@ internal static class JeiCatalog
                     }
                 }
 
-                // Parse ingredients
                 if (sig.Ingredients != null)
                 {
                     foreach (var ing in sig.Ingredients)
@@ -767,7 +748,6 @@ internal static class JeiCatalog
                                 if (!ingItemEntry.Usages.Contains(r))
                                     ingItemEntry.Usages.Add(r);
 
-                                // If ingredient grants an affix, link this cooked meal to that affix as well!
                                 if (HRFoodDatabase.IngredientsByItemID != null &&
                                     HRFoodDatabase.IngredientsByItemID.TryGetValue(ingItemId, out var ingData) &&
                                     ingData.AffixID > 0)
@@ -785,11 +765,9 @@ internal static class JeiCatalog
                     }
                 }
 
-                // Add recipe to the meal item
                 if (!mealEntry.Recipes.Contains(r))
                     mealEntry.Recipes.Add(r);
 
-                // Add to cooking station usages
                 if (stnItemId > 0 && _items.TryGetValue(stnItemId, out var stnEntry))
                 {
                     if (!stnEntry.Usages.Contains(r))
@@ -811,7 +789,6 @@ internal static class JeiCatalog
         return false;
     }
 
-    // --- Unique Game Attributes Knowledge Base (Detailed mechanics for non-numeric & boss traits) ---
     private static readonly Dictionary<string, (string titleRu, string titleEn, string descRu, string descEn, string appliesRu, string appliesEn, string sourceRu, string sourceEn)> _uniqueAttributeKnowledge = new(StringComparer.OrdinalIgnoreCase)
     {
         ["BellstalkerBlessing"] = (
@@ -1294,12 +1271,10 @@ internal static class JeiCatalog
         string sTitle = gameTitle ?? "";
         string sLoc = locTitle ?? "";
 
-        // 1. English candidate from StringID
         string cleanFromId = CleanAttributeName(sId);
         if (string.IsNullOrEmpty(cleanFromId) && entry.ID > 0)
             cleanFromId = "#" + entry.ID;
 
-        // 2. Candidate EN: prioritize non-Cyrillic gameTitle, fallback to cleanFromId
         string candidateEn = "";
         if (!string.IsNullOrEmpty(sTitle) && !HasCyrillic(sTitle))
             candidateEn = CleanAttributeName(sTitle);
@@ -1310,7 +1285,6 @@ internal static class JeiCatalog
 
         candidateEn = candidateEn.Trim(':', ' ');
 
-        // 3. Candidate RU: prioritize Cyrillic locTitle, then Cyrillic gameTitle, fallback to translated candidateEn
         string candidateRu = "";
         if (!string.IsNullOrEmpty(sLoc) && HasCyrillic(sLoc))
             candidateRu = sLoc.Trim(':', ' ');
@@ -1322,7 +1296,6 @@ internal static class JeiCatalog
         entry.TitleEn = candidateEn;
         entry.TitleRu = candidateRu;
 
-        // 4. Match against unique attribute knowledge
         string searchKey = $"{sId} {cleanFromId} {sTitle} {sLoc} {candidateEn} {candidateRu}".Trim();
         foreach (var kv in _uniqueAttributeKnowledge)
         {
@@ -1341,7 +1314,6 @@ internal static class JeiCatalog
             }
         }
 
-        // 5. Fail-safe: TitleEn MUST NOT have Cyrillic letters
         if (HasCyrillic(entry.TitleEn))
         {
             foreach (var kv in _ruToEnTranslations)
@@ -1363,7 +1335,6 @@ internal static class JeiCatalog
                 entry.TitleEn = "Attribute " + entry.ID;
         }
 
-        // 6. Guarantee no stray colons or spaces
         entry.TitleEn = entry.TitleEn?.Trim(':', ' ') ?? "";
         entry.TitleRu = entry.TitleRu?.Trim(':', ' ') ?? "";
     }
@@ -1380,12 +1351,10 @@ internal static class JeiCatalog
                 if (dbs != null && dbs.Length > 0) attrDb = dbs[0];
             }
 
-            // 1. Initialize HRAffixRegistry
             try { HRAffixRegistry.EnsureInitialized(); } catch (Exception) { }
 
             var indexedDefs = new HashSet<int>();
 
-            // 2. Scan all definitions from modern HRAffixRegistry (200+ perks and affixes)
             if (HRAffixRegistry.Definitions != null)
             {
                 int defCount = HRAffixRegistry.Definitions.Count;
@@ -1410,23 +1379,19 @@ internal static class JeiCatalog
                         TitleColor = Color.white
                     };
 
-                    // Display Name & Titles
                     string dispName = null;
                     try { dispName = HRAffixRegistry.GetDisplayNameFallback(def); } catch { }
                     ResolveAttributeTitles(entry, def.StringID, dispName, null);
 
-                    // Min Rarity
                     if ((int)def.MinimumRarity > 0)
                         entry.MinRarity = def.MinimumRarity.ToString();
 
-                    // Source
                     if (!string.IsNullOrEmpty(def.LinkedAttributeSource))
                     {
                         entry.SourceNameEn = def.LinkedAttributeSource;
                         entry.SourceNameRu = def.LinkedAttributeSource;
                     }
 
-                    // Applies to
                     switch (def.ItemType)
                     {
                         case HRAffixItemType.Weapon:
@@ -1455,7 +1420,6 @@ internal static class JeiCatalog
                             break;
                     }
 
-                    // Triggers
                     entry.TriggerTextEn = def.Triggers.ToString();
                     string trig = def.Triggers.ToString().ToLowerInvariant();
                     if (trig.Contains("hit")) entry.TriggerTextRu = "При нанесении удара";
@@ -1464,7 +1428,6 @@ internal static class JeiCatalog
                     else if (trig.Contains("equip")) entry.TriggerTextRu = "При экипировке (пассивно)";
                     else entry.TriggerTextRu = "Постоянный эффект";
 
-                    // Duration
                     if (entry.Duration > 0)
                     {
                         entry.DurationTextEn = $"{entry.Duration:0.#}s";
@@ -1476,7 +1439,6 @@ internal static class JeiCatalog
                         entry.DurationTextRu = "Постоянно (пассивный)";
                     }
 
-                    // Value Range
                     if (entry.MinValue != 0 || entry.MaxValue != 0)
                     {
                         if (entry.MaxValue == 0 || Mathf.Approximately(entry.MinValue, entry.MaxValue))
@@ -1493,7 +1455,6 @@ internal static class JeiCatalog
                         entry.ValueRangeText = "";
                     }
 
-                    // Description (if not already set by unique knowledge)
                     if (string.IsNullOrEmpty(entry.DescriptionEn))
                     {
                         if (!string.IsNullOrEmpty(entry.ValueRangeText))
@@ -1508,7 +1469,6 @@ internal static class JeiCatalog
                         }
                     }
 
-                    // Category
                     string catSearch = ((entry.StringID ?? "") + " " + (entry.TitleEn ?? "")).ToLowerInvariant();
                     if (def.ItemType == HRAffixItemType.Food || catSearch.Contains("food") || catSearch.Contains("cook") || catSearch.Contains("meal") || catSearch.Contains("satiat") || catSearch.Contains("hydrat"))
                     {
@@ -1534,7 +1494,6 @@ internal static class JeiCatalog
                 }
             }
 
-            // 3. Scan & Supplement from MasterAttributeDB (enrich matches, add unique legacy/boss attributes)
             if (attrDb?.AttributeInfos != null)
             {
                 _log?.LogInfo($"[JEI] Supplementing with {attrDb.AttributeInfos.Length} attributes from MasterAttributeDB...");
@@ -1546,13 +1505,11 @@ internal static class JeiCatalog
 
                     int resolvedId = ai.ID > 0 ? ai.ID : (i + 1);
 
-                    // Check if already registered from HRAffixRegistry
                     if (_attributesById.TryGetValue(resolvedId, out var existing))
                     {
                         if (existing.Icon == null && ai.Icon != null) existing.Icon = ai.Icon;
                         if (ai.TitleColor.a > 0.05f) existing.TitleColor = ai.TitleColor;
 
-                        // Check localized title/description from game
                         string locT = null;
                         Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStringArray locD = null;
                         try
@@ -1573,7 +1530,6 @@ internal static class JeiCatalog
                             if (!string.IsNullOrEmpty(fullLoc)) existing.DescriptionRu = fullLoc;
                         }
 
-                        // Check description format
                         string dFormat = ai.DescriptionFormat;
                         if (!string.IsNullOrEmpty(dFormat) && string.IsNullOrEmpty(existing.DescriptionEn))
                         {
@@ -1592,7 +1548,6 @@ internal static class JeiCatalog
                         continue;
                     }
 
-                    // This is a unique/legacy attribute!
                     var entry = new JeiAttributeEntry
                     {
                         ID = resolvedId,
@@ -1610,7 +1565,6 @@ internal static class JeiCatalog
 
                     ResolveAttributeTitles(entry, ai.StringID, ai.Title, locTitle);
 
-                    // Inspect prefab for numbers/sources
                     HRAttribute prefabAttr = null;
                     if (ai.AttributePrefab != null)
                     {
@@ -1642,7 +1596,6 @@ internal static class JeiCatalog
                         }
                     }
 
-                    // Formatted description if not already set by unique knowledge
                     if (string.IsNullOrEmpty(entry.DescriptionEn))
                     {
                         string descF = ai.DescriptionFormat;
@@ -1680,7 +1633,6 @@ internal static class JeiCatalog
                         entry.AppliesToRu = "Персонаж и экипировка";
                     }
 
-                    // Category
                     string cSearch = ((entry.StringID ?? "") + " " + (entry.TitleEn ?? "") + " " + (entry.DescriptionEn ?? "")).ToLowerInvariant();
                     if (cSearch.Contains("damage") || cSearch.Contains("attack") || cSearch.Contains("bleed") || cSearch.Contains("crit") || cSearch.Contains("fire") || cSearch.Contains("shock") || cSearch.Contains("poison"))
                         entry.Category = "Combat";
@@ -2024,7 +1976,6 @@ internal static class JeiCatalog
 
     private static (string groupKey, string nameRu, string nameEn, bool isBoss)? MatchCharacter(string s)
     {
-        // Bosses
         if (s.Contains("Bellstalker"))
             return ("Bellstalker", "Беллсталкер (Босс)", "Bellstalker (Boss)", true);
         if (s.Contains("Zena"))
@@ -2044,7 +1995,6 @@ internal static class JeiCatalog
         if (s.Contains("Ronin_Sifu"))
             return ("RoninSifu", "Шифу (Босс)", "Sifu (Boss)", true);
 
-        // Animals
         if (s.Contains("Boar"))
             return ("Boar", "Кабаны", "Boars", false);
         if (s.Contains("Wolf"))
@@ -2068,7 +2018,6 @@ internal static class JeiCatalog
         if (s.Contains("Bird") || s.Contains("Seagull"))
             return ("Bird", "Птицы", "Birds", false);
 
-        // Fish (Fishing / World drops)
         if (s.Contains("KoiFish"))
             return ("KoiFish", "Карп кои (рыбалка)", "Koi Fish (Fishing)", false);
         if (s.Contains("Salmon"))
@@ -2080,7 +2029,6 @@ internal static class JeiCatalog
         if (s.Contains("Pufferfish"))
             return ("Pufferfish", "Рыба-фугу (рыбалка)", "Pufferfish (Fishing)", false);
 
-        // Factions
         if (s.Contains("Cultist"))
             return ("Cultist", "Культисты", "Cultists", false);
         if (s.Contains("Bellcoat") || s.Contains("Bellsworn") || s.Contains("ApexHunter"))

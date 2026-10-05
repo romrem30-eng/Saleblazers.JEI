@@ -3,10 +3,6 @@ using BepInEx.Configuration;
 
 namespace Saleblazers.ModBase;
 
-/// <summary>
-/// Bilingual localization helper (Russian / English) for Saleblazers JEI.
-/// Can be toggled live from the top bar button (Lang: RU/EN) and persists in BepInEx config.
-/// </summary>
 internal static class JeiLoc
 {
     private static ConfigEntry<string> _langConfig;
@@ -28,7 +24,6 @@ internal static class JeiLoc
 
     public static string Pick(string ru, string en) => IsRu ? ru : en;
 
-    // --- Header & Mode Tabs ---
     public static string HeaderTitle => Pick(
         "JEI  •  КАТАЛОГ ПРЕДМЕТОВ И РЕЦЕПТОВ",
         "JEI  •  ITEM & RECIPE CATALOG");
@@ -48,7 +43,6 @@ internal static class JeiLoc
         $"Атрибутов: {count}",
         $"Attributes: {count}");
 
-    // --- Item Category Filters ---
     public static string CatAll => Pick("ВСЁ", "ALL");
     public static string CatWeapons => Pick("ОРУЖИЕ", "WEAPONS");
     public static string CatArmor => Pick("БРОНЯ", "ARMOR");
@@ -58,14 +52,12 @@ internal static class JeiLoc
     public static string CatStations => Pick("СТАНКИ", "STATIONS");
     public static string CatConsumables => Pick("РАСХОДНИКИ", "CONSUMABLES");
 
-    // --- Attribute Category Filters ---
     public static string AttrCatAll => Pick("ВСЕ", "ALL");
     public static string AttrCatCombat => Pick("БОЙ", "COMBAT");
     public static string AttrCatDefense => Pick("ЗАЩИТА", "DEFENSE");
     public static string AttrCatFood => Pick("ЕДА", "FOOD");
     public static string AttrCatUtility => Pick("ПРОЧЕЕ", "UTILITY");
 
-    // --- Bottom bar & Tabs ---
     public static string CloseButton => Pick("ЗАКРЫТЬ (J / ESC)", "CLOSE (J / ESC)");
     public static string SpawnOne => Pick("СПАВН x1", "SPAWN x1");
     public static string SpawnBatch(int count) => Pick($"СПАВН x{count}", $"SPAWN x{count}");
@@ -78,7 +70,6 @@ internal static class JeiLoc
         ? Pick($"ГДЕ НУЖЕН (U) [{count.Value}]", $"USAGES (U) [{count.Value}]")
         : Pick("ГДЕ НУЖЕН (U)", "USAGES (U)");
 
-    // --- Detail Panel Empty State ---
     public static string SelectItemPrompt => Pick(
         "<color=#9AA4B8>Выберите предмет в таблице слева</color>",
         "<color=#9AA4B8>Select an item from the grid on the left</color>");
@@ -98,7 +89,6 @@ internal static class JeiLoc
     public static string RecipesDefaultHeader => Pick("--- РЕЦЕПТЫ ---", "--- RECIPES ---");
     public static string AttrDefaultHeader => Pick("--- ЭФФЕКТ АТРИБУТА ---", "--- ATTRIBUTE EFFECT ---");
 
-    // --- Detail Panel Populated ---
     public static string BasePriceLabel => Pick("База:", "Base:");
     public static string CraftedPriceLabel => Pick("Крафт:", "Crafted:");
     public static string DropsLabel => Pick("Добыча:", "Source:");
@@ -121,7 +111,6 @@ internal static class JeiLoc
         "<color=#8892A6>Не используется в рецептах.</color>",
         "<color=#8892A6>Not used in any recipes.</color>");
 
-    // --- Recipe Cards & Cooking ---
     public static string StationLabel => Pick("Станок:", "Station:");
     public static string TimeLabel => Pick("Время:", "Time:");
     public static string SecondsUnit => Pick("сек.", "s");
@@ -133,7 +122,6 @@ internal static class JeiLoc
     public static string RegenLabel => Pick("Регенерация:", "Regen:");
     public static string AffixesLabel => Pick("Эффект:", "Perk/Affix:");
 
-    // --- Attribute Explorer Details ---
     public static string AttrCategoryLabel => Pick("Категория:", "Category:");
     public static string AttrInternalIdLabel => Pick("ID в коде:", "Internal ID:");
     public static string AttrEffectHeader => Pick("ОПИСАНИЕ ЭФФЕКТА", "EFFECT DESCRIPTION");
@@ -154,7 +142,6 @@ internal static class JeiLoc
         "Этот атрибут не привязан к блюдам кулинарии.\nПолучается через зачарования оружия/брони, трофеи с боссов или торговцев.",
         "This attribute is not linked to cooked meals.\nObtained via weapon/armor affixes, boss drops, or merchant stock.");
 
-    // --- Research / Unlock ---
     public static string ResearchNotRequired => Pick(
         "<color=#8892A6><b>Изучение:</b> Не требуется (базовый предмет)</color>",
         "<color=#8892A6><b>Research:</b> Not required (base item)</color>");
@@ -174,7 +161,6 @@ internal static class JeiLoc
     public static string MustResearchOrCraftPrefix => Pick("Нужно изучить/скрафтить: ", "Must research/craft: ");
     public static string CompactStartUnlocked => Pick("   <color=#7BE082>Открыто со старта</color>", "   <color=#7BE082>Unlocked from start</color>");
 
-    // --- Notifications ---
     public static string NotifyLangSwitched => Pick(
         "Язык интерфейса JEI: Русский (RU)",
         "JEI Language: English (EN)");

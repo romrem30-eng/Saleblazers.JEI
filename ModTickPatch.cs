@@ -5,10 +5,6 @@ using UnityEngine;
 
 namespace Saleblazers.ModBase;
 
-/// <summary>
-/// Per-frame hook driven from ModHost.Update (with HRDayManager.LateUpdate fallback).
-/// Deduplicated by Time.frameCount so input is never processed twice in the same frame.
-/// </summary>
 internal static class ModTickPatch
 {
     private static ManualLogSource _log;
