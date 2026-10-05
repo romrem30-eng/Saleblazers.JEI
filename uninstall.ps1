@@ -56,12 +56,12 @@ function Find-SaleblazersPath {
 
 Write-Banner
 
-Write-Host "Поиск игры..." -ForegroundColor White
+Write-Host "Detecting Saleblazers game folder..." -ForegroundColor White
 $gamePath = Find-SaleblazersPath
 
 if (-not $gamePath) {
-    Write-Host "Укажите путь к папке игры (где находится Saleblazers.exe):" -ForegroundColor Yellow
-    $userInput = Read-Host "Путь к игре"
+    Write-Host "Please specify your Saleblazers folder (where Saleblazers.exe is located):" -ForegroundColor Yellow
+    $userInput = Read-Host "Game Path"
     if ($userInput) {
         $clean = $userInput.Trim('"').Trim()
         if (Test-Path (Join-Path $clean 'Saleblazers.exe')) {
@@ -73,11 +73,11 @@ if (-not $gamePath) {
 }
 
 if (-not $gamePath -or -not (Test-Path (Join-Path $gamePath 'Saleblazers.exe'))) {
-    Write-Host "[ОШИБКА] Папка игры не найдена." -ForegroundColor Red
+    Write-Host "[ERROR] Saleblazers game folder not found." -ForegroundColor Red
     exit 1
 }
 
-Write-Host "Игра найдена: $gamePath" -ForegroundColor Green
+Write-Host "Game folder found: $gamePath" -ForegroundColor Green
 Write-Host ""
 
 $pluginsDir = Join-Path $gamePath 'BepInEx\plugins'
@@ -87,19 +87,18 @@ $jeiDisabled = Join-Path $pluginsDir 'Saleblazers.JEI.dll.disabled'
 $found = $false
 if (Test-Path $jeiDll) {
     Remove-Item $jeiDll -Force
-    Write-Host "Удален файл: $jeiDll" -ForegroundColor Green
+    Write-Host "Removed: $jeiDll" -ForegroundColor Green
     $found = $true
 }
 if (Test-Path $jeiDisabled) {
     Remove-Item $jeiDisabled -Force
-    Write-Host "Удален файл: $jeiDisabled" -ForegroundColor Green
+    Write-Host "Removed: $jeiDisabled" -ForegroundColor Green
     $found = $true
 }
 
 if (-not $found) {
-    Write-Host "Saleblazers.JEI.dll не найден в папке BepInEx\plugins. Мод уже удален." -ForegroundColor Yellow
+    Write-Host "Saleblazers.JEI.dll was not found in BepInEx\plugins. Mod is already uninstalled." -ForegroundColor Yellow
 } else {
     Write-Host ""
-    Write-Host "Мод Saleblazers JEI успешно удален!" -ForegroundColor Green
+    Write-Host "Saleblazers JEI has been successfully uninstalled." -ForegroundColor Green
 }
-Write-Host ""
